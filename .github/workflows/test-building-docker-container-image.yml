@@ -1,0 +1,23 @@
+name: Test Building Docker Container Image
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/*.yml'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/*.yml'
+jobs:
+  test-building-docker-container-image:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the image
+      run: docker build . -t test-swift-apache
+    - name: Exec "apachectl -V"
+      run: docker run --rm -t test-swift-apache /opt/httpd/bin/apachectl -V
