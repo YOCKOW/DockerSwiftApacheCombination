@@ -21,3 +21,5 @@ jobs:
       run: docker build . -t test-swift-apache
     - name: Exec "apachectl -V"
       run: docker run --rm -t test-swift-apache /opt/httpd/bin/apachectl -V
+    - name: Show licenses
+      run: docker run --rm -t test-swift-apache show-licenses

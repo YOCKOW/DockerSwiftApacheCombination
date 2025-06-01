@@ -1,0 +1,30 @@
+#!/bin/sh
+
+set -eu
+
+echo "ℹ️ This container image contains some open source softwares."
+echo "   Here are their licenses below: "
+echo
+
+
+horizontalLine=""
+printHorizontalLine() {
+  if [ -n "$horizontalLine" ]; then
+    printf '\033[1m%s\033[m\n' "$horizontalLine"
+    return 0
+  fi
+
+  screenWidth=${COLUMNS:-$(tput cols)}
+  for ii in $(seq 1 $screenWidth); do
+    horizontalLine="=$horizontalLine"
+  done
+  printHorizontalLine
+}
+
+cd /licenses
+for licensePath in *; do
+  printHorizontalLine
+  printf '\033[1m\033[7m\033[21m📃 %s\033[m\n\n' "$licensePath"
+  cat "$licensePath"
+  echo 
+done
