@@ -208,9 +208,10 @@ RUN mkdir "$OPENSSL_BUILD_WORKSPACE" \
     && mkdir "$OPENSSL_SOURCE_DIR" \
     && mkdir "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
-RUN curl -sL https://openssl-library.org/source/pubkeys.asc | gpg --import
 
 WORKDIR $OPENSSL_BUILD_WORKSPACE
+RUN curl -sL https://openssl-library.org/source/pubkeys.asc -o openssl.public.asc
+RUN gpg --import openssl.public.asc
 RUN curl -sL "$OPENSSL_BIN_URL" -o openssl.tar.gz "$OPENSSL_SIG_URL" -o openssl.tar.gz.asc
 RUN gpg --batch --verify openssl.tar.gz.asc openssl.tar.gz
 RUN tar -xzf openssl.tar.gz --directory "$OPENSSL_SOURCE_DIR" --strip-components=1
