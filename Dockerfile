@@ -38,6 +38,7 @@ RUN apt update \
         m4 \
         perl \
         pkg-config \
+        wget \
         zsh
 
 
@@ -118,7 +119,7 @@ RUN mkdir "$ZLIB_BUILD_WORKSPACE" \
     && mkdir "$ZLIB_SOURCE_DIR" \
     && mkdir "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
-RUN curl -sL https://madler.net/madler/pgp.html | gpg --import
+RUN wget -q -O- 'https://madler.net/madler/pgp.html' | gpg --import
 
 WORKDIR $ZLIB_BUILD_WORKSPACE
 RUN curl -sL "$ZLIB_BIN_URL" -o zlib.tar.gz "$ZLIB_SIG_URL" -o zlib.tar.gz.asc
@@ -208,10 +209,9 @@ RUN mkdir "$OPENSSL_BUILD_WORKSPACE" \
     && mkdir "$OPENSSL_SOURCE_DIR" \
     && mkdir "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
+RUN wget -q -O- 'https://openssl-library.org/source/pubkeys.asc' | gpg --import
 
 WORKDIR $OPENSSL_BUILD_WORKSPACE
-RUN curl -sL https://openssl-library.org/source/pubkeys.asc -o openssl.public.asc
-RUN gpg --import openssl.public.asc
 RUN curl -sL "$OPENSSL_BIN_URL" -o openssl.tar.gz "$OPENSSL_SIG_URL" -o openssl.tar.gz.asc
 RUN gpg --batch --verify openssl.tar.gz.asc openssl.tar.gz
 RUN tar -xzf openssl.tar.gz --directory "$OPENSSL_SOURCE_DIR" --strip-components=1
@@ -301,8 +301,8 @@ RUN mkdir "$APACHE_BUILD_WORKSPACE" \
     && mkdir "$APACHE_HTTPD_SOURCE_DIR" \
     && mkdir "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
-RUN curl -sL "$APACHE_HTTPD_KEYS_URL" | gpg --import
-RUN curl -sL "$APACHE_APR_KEYS_URL" | gpg --import
+RUN wget -q -O- "$APACHE_HTTPD_KEYS_URL" | gpg --import
+RUN wget -q -O- "$APACHE_APR_KEYS_URL" | gpg --import
 
 WORKDIR $APACHE_BUILD_WORKSPACE
 
