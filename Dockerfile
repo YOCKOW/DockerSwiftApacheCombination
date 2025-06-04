@@ -18,10 +18,14 @@ ARG OPENSSL_INSTALL_PREFIX="/opt/openssl"
 ARG PCRE2_INSTALL_PREFIX="/opt/pcre2"
 ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 
+ARG LICENSES_DIR="/licenses"
+
+ARG SWIFT_VERSION="6.1.2"
 
 ##### Base image for building #####
 FROM ubuntu:noble AS build-base
 RUN apt update \
+    && apt upgrade -y \
     && apt install -y \
         autoconf \
         automake \
@@ -33,7 +37,9 @@ RUN apt update \
         libtool \
         m4 \
         perl \
-        pkg-config
+        pkg-config \
+        wget \
+        zsh
 
 
 ##### Lua #####
@@ -42,10 +48,10 @@ FROM build-base AS lua-builder
 ARG LUA_VERSION="5.4.7"
 ARG LUA_BUILD_WORKSPACE="/lua-workspace"
 ARG LUA_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV LUA_BIN_URL="https://lua.org/ftp/lua-${LUA_VERSION}.tar.gz" \
     LUA_HASH="9fbf5e28ef86c69858f6d3d34eccc32e911c1a28b4120ff3e84aaa70cfbf1e30" \
-    LUA_SOURCE_DIR="${LUA_BUILD_WORKSPACE}/lua" \
-    CC=clang CXX=clang++
+    LUA_SOURCE_DIR="${LUA_BUILD_WORKSPACE}/lua" 
 
 RUN mkdir "$LUA_BUILD_WORKSPACE" \
     && mkdir "$LUA_SOURCE_DIR"
@@ -57,7 +63,10 @@ RUN sha256sum --check lua.tar.gz.hash
 RUN tar -xzf lua.tar.gz --directory "$LUA_SOURCE_DIR" --strip-components=1
 
 WORKDIR $LUA_SOURCE_DIR
-RUN make MYCFLAGS="-fPIC" && make install INSTALL_TOP="$LUA_INSTALL_PREFIX"
+RUN make MYCFLAGS="-fPIC" CC=clang CXX=clang++ && make install INSTALL_TOP="$LUA_INSTALL_PREFIX"
+
+COPY ./tools/extract-lua-license "${LUA_BUILD_WORKSPACE}/extract-lua-license"
+RUN mkdir -p "$LICENSES_DIR" && "${LUA_BUILD_WORKSPACE}/extract-lua-license" ./doc/readme.html >"${LICENSES_DIR}/Lua.html"
 
 
 ##### PCRE2 #####
@@ -66,6 +75,7 @@ FROM build-base AS pcre2-builder
 ARG PCRE2_VERSION="10.45"
 ARG PCRE2_BUILD_WORKSPACE="/pcre2-workspace"
 ARG PCRE2_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV PCRE2_BIN_URL="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" \
     PCRE2_SIG_URL="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz.sig" \
     PCRE2_SOURCE_DIR="${PCRE2_BUILD_WORKSPACE}/pcre2" \
@@ -89,6 +99,7 @@ RUN ./configure \
         --enable-shared \
         --enable-jit
 RUN make && make install
+RUN mkdir -p "$LICENSES_DIR" && cp ./LICENCE.md "${LICENSES_DIR}/PCRE2.md"
 
 
 ##### zlib #####
@@ -97,6 +108,7 @@ FROM build-base AS zlib-builder
 ARG ZLIB_VERSION="1.3.1"
 ARG ZLIB_BUILD_WORKSPACE="/zlib-workspace"
 ARG ZLIB_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV ZLIB_BIN_URL="https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz" \
     ZLIB_SIG_URL="https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz.asc" \
     ZLIB_SOURCE_DIR="${ZLIB_BUILD_WORKSPACE}/zlib" \
@@ -107,7 +119,7 @@ RUN mkdir "$ZLIB_BUILD_WORKSPACE" \
     && mkdir "$ZLIB_SOURCE_DIR" \
     && mkdir "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
-RUN curl -sL https://madler.net/madler/pgp.html | gpg --import
+RUN wget -q -O- 'https://madler.net/madler/pgp.html' | gpg --import
 
 WORKDIR $ZLIB_BUILD_WORKSPACE
 RUN curl -sL "$ZLIB_BIN_URL" -o zlib.tar.gz "$ZLIB_SIG_URL" -o zlib.tar.gz.asc
@@ -117,6 +129,7 @@ RUN tar -xzf zlib.tar.gz --directory "$ZLIB_SOURCE_DIR" --strip-components=1
 WORKDIR $ZLIB_SOURCE_DIR
 RUN ./configure --shared --prefix="$ZLIB_INSTALL_PREFIX"
 RUN make && make install
+RUN mkdir -p "$LICENSES_DIR" && cp ./LICENSE "${LICENSES_DIR}/zlib.txt"
 
 
 ##### libexpat #####
@@ -126,6 +139,7 @@ ARG LIBEXPAT_VERSION="2.7.1"
 ARG LIBEXPAT_TAG="R_2_7_1"
 ARG LIBEXPAT_BUILD_WORKSPACE="/libexpat-workspace"
 ARG LIBEXPAT_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV LIBEXPAT_BIN_URL="https://github.com/libexpat/libexpat/releases/download/${LIBEXPAT_TAG}/expat-${LIBEXPAT_VERSION}.tar.gz" \
     LIBEXPAT_SIG_URL="https://github.com/libexpat/libexpat/releases/download/${LIBEXPAT_TAG}/expat-${LIBEXPAT_VERSION}.tar.gz.asc" \
     LIBEXPAT_SOURCE_DIR="${LIBEXPAT_BUILD_WORKSPACE}/libexpat" \
@@ -146,6 +160,7 @@ RUN tar -xzf libexpat.tar.gz --directory "$LIBEXPAT_SOURCE_DIR" --strip-componen
 WORKDIR $LIBEXPAT_SOURCE_DIR
 RUN ./configure --prefix="$LIBEXPAT_INSTALL_PREFIX"
 RUN make && make install
+RUN mkdir -p "$LICENSES_DIR" && cp ./COPYING "${LICENSES_DIR}/Expat.txt"
 
 
 ##### libxml2 #####
@@ -154,6 +169,7 @@ FROM build-base AS libxml2-builder
 ARG LIBXML2_VERSION="2.14.3"
 ARG LIBXML2_BUILD_WORKSPACE="/libxml2-workspace"
 ARG LIBXML2_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV LIBXML2_BIN_URL="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML2_VERSION}/libxml2-v${LIBXML2_VERSION}.tar.gz" \
     LIBXML2_SOURCE_DIR="${LIBXML2_BUILD_WORKSPACE}/libxml2" \
     CC=clang CXX=clang++
@@ -170,6 +186,7 @@ WORKDIR $LIBXML2_SOURCE_DIR
 RUN ./autogen.sh --prefix="$LIBXML2_INSTALL_PREFIX" --without-python \
     && ./configure --prefix="$LIBXML2_INSTALL_PREFIX" --without-python
 RUN make && make install
+RUN mkdir -p "$LICENSES_DIR" && cp ./Copyright "${LICENSES_DIR}/libxml2.txt"
 
 
 ##### OpenSSL #####
@@ -181,6 +198,7 @@ COPY --from=zlib-builder $ZLIB_INSTALL_PREFIX $ZLIB_INSTALL_PREFIX
 ARG OPENSSL_VERSION="3.5.0"
 ARG OPENSSL_BUILD_WORKSPACE="/openssl-workspace"
 ARG OPENSSL_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV OPENSSL_BIN_URL="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" \
     OPENSSL_SIG_URL="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz.asc" \
     OPENSSL_SOURCE_DIR="${OPENSSL_BUILD_WORKSPACE}/openssl" \
@@ -191,7 +209,7 @@ RUN mkdir "$OPENSSL_BUILD_WORKSPACE" \
     && mkdir "$OPENSSL_SOURCE_DIR" \
     && mkdir "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
-RUN curl -sL https://openssl-library.org/source/pubkeys.asc | gpg --import
+RUN wget -q -O- 'https://openssl-library.org/source/pubkeys.asc' | gpg --import
 
 WORKDIR $OPENSSL_BUILD_WORKSPACE
 RUN curl -sL "$OPENSSL_BIN_URL" -o openssl.tar.gz "$OPENSSL_SIG_URL" -o openssl.tar.gz.asc
@@ -204,17 +222,19 @@ RUN perl ./Configure \
         --with-zlib-include="${ZLIB_INSTALL_PREFIX}/include" \
         shared zlib zlib-dynamic
 RUN make && make install
+RUN mkdir -p "${LICENSES_DIR}" && cp ./LICENSE.txt "${LICENSES_DIR}/OpenSSL.txt"
 
 
 ##### nghttp2 #####
 FROM build-base AS nghttp2-builder
 
-ARG NGHTTP2_INSTALL_PREFIX
 ARG OPENSSL_INSTALL_PREFIX
 COPY --from=openssl-builder $OPENSSL_INSTALL_PREFIX $OPENSSL_INSTALL_PREFIX
 
 ARG NGHTTP2_VERSION="1.65.0"
 ARG NGHTTP2_BUILD_WORKSPACE="/nghttp2-workspace"
+ARG NGHTTP2_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV NGHTTP2_BIN_URL="https://github.com/nghttp2/nghttp2/releases/download/v${NGHTTP2_VERSION}/nghttp2-${NGHTTP2_VERSION}.tar.gz" \
     NGHTTP2_SIG_URL="https://github.com/nghttp2/nghttp2/releases/download/v${NGHTTP2_VERSION}/nghttp2-${NGHTTP2_VERSION}.tar.gz.asc" \
     NGHTTP2_SOURCE_DIR="${NGHTTP2_BUILD_WORKSPACE}/nghttp2" \
@@ -236,6 +256,7 @@ RUN tar -xzf nghttp2.tar.gz --directory "$NGHTTP2_SOURCE_DIR" --strip-components
 WORKDIR $NGHTTP2_SOURCE_DIR
 RUN ./configure --prefix="$NGHTTP2_INSTALL_PREFIX" --enable-lib-only
 RUN make && make install
+RUN mkdir -p "${LICENSES_DIR}" && cp ./COPYING "${LICENSES_DIR}/nghttp2.txt"
 
 
 ##### httpd #####
@@ -264,6 +285,7 @@ ARG APACHE_HTTPD_KEYS_URL="https://downloads.apache.org/httpd/KEYS"
 ARG APACHE_APR_KEYS_URL="https://downloads.apache.org/apr/KEYS"
 ARG APACHE_BUILD_WORKSPACE="/apache-workspace"
 ARG APACHE_HTTPD_INSTALL_PREFIX
+ARG LICENSES_DIR
 ENV APACHE_HTTPD_BIN_URL="${APACHE_WEB_ROOT}/httpd/httpd-${APACHE_HTTPD_VERSION}.tar.gz" \
     APACHE_HTTPD_SIG_URL="${APACHE_WEB_ROOT}/httpd/httpd-${APACHE_HTTPD_VERSION}.tar.gz.asc" \
     APACHE_APR_BIN_URL="${APACHE_WEB_ROOT}/apr/apr-${APACHE_APR_VERSION}.tar.gz" \
@@ -279,8 +301,8 @@ RUN mkdir "$APACHE_BUILD_WORKSPACE" \
     && mkdir "$APACHE_HTTPD_SOURCE_DIR" \
     && mkdir "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
-RUN curl -sL "$APACHE_HTTPD_KEYS_URL" | gpg --import
-RUN curl -sL "$APACHE_APR_KEYS_URL" | gpg --import
+RUN wget -q -O- "$APACHE_HTTPD_KEYS_URL" | gpg --import
+RUN wget -q -O- "$APACHE_APR_KEYS_URL" | gpg --import
 
 WORKDIR $APACHE_BUILD_WORKSPACE
 
@@ -311,10 +333,26 @@ RUN ./configure \
         --enable-http2 --with-nghttp2="$NGHTTP2_INSTALL_PREFIX" \
         --with-pcre="$PCRE2_INSTALL_PREFIX"
 RUN make && make install
+RUN mkdir -p "${LICENSES_DIR}" \
+    && cp ./LICENSE "${LICENSES_DIR}/Apache_HTTP_Server-LICENSE.txt" \
+    && cp ./NOTICE  "${LICENSES_DIR}/Apache_HTTP_Server-NOTICE.txt" \
+    && cp ./srclib/apr/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime-LICENSE.txt" \
+    && cp ./srclib/apr/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime-NOTICE.txt" \
+    && cp ./srclib/apr-util/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime_Utility_Library-LICENSE.txt" \
+    && cp ./srclib/apr-util/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime_Utility_Library-NOTICE.txt"
 
+
+
+##### Swift license #####
+FROM build-base AS swift-license-fetcher
+
+ARG LICENSES_DIR
+ARG SWIFT_VERSION
+RUN mkdir -p "${LICENSES_DIR}" \
+    && curl -sL "https://raw.githubusercontent.com/swiftlang/swift/refs/tags/swift-${SWIFT_VERSION}-RELEASE/LICENSE.txt" -o "${LICENSES_DIR}/Swift.txt"
 
 ##### Swift! #####
-FROM swift:6.1.1-noble-slim
+FROM swift:${SWIFT_VERSION}-noble-slim
 
 ARG APACHE_HTTPD_INSTALL_PREFIX
 ARG LIBEXPAT_INSTALL_PREFIX
@@ -324,12 +362,34 @@ ARG NGHTTP2_INSTALL_PREFIX
 ARG OPENSSL_INSTALL_PREFIX
 ARG PCRE2_INSTALL_PREFIX
 ARG ZLIB_INSTALL_PREFIX
-COPY --from=httpd-builder $APACHE_HTTPD_INSTALL_PREFIX $APACHE_HTTPD_INSTALL_PREFIX
-COPY --from=libexpat-builder $LIBEXPAT_INSTALL_PREFIX $LIBEXPAT_INSTALL_PREFIX
-COPY --from=libxml2-builder $LIBXML2_INSTALL_PREFIX $LIBXML2_INSTALL_PREFIX
-COPY --from=lua-builder $LUA_INSTALL_PREFIX $LUA_INSTALL_PREFIX
-COPY --from=nghttp2-builder $NGHTTP2_INSTALL_PREFIX $NGHTTP2_INSTALL_PREFIX
-COPY --from=openssl-builder $OPENSSL_INSTALL_PREFIX $OPENSSL_INSTALL_PREFIX
-COPY --from=pcre2-builder $PCRE2_INSTALL_PREFIX $PCRE2_INSTALL_PREFIX
-COPY --from=zlib-builder $ZLIB_INSTALL_PREFIX $ZLIB_INSTALL_PREFIX
 
+ARG LICENSES_DIR
+
+COPY --from=httpd-builder $APACHE_HTTPD_INSTALL_PREFIX $APACHE_HTTPD_INSTALL_PREFIX
+COPY --from=httpd-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=libexpat-builder $LIBEXPAT_INSTALL_PREFIX $LIBEXPAT_INSTALL_PREFIX
+COPY --from=libexpat-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=libxml2-builder $LIBXML2_INSTALL_PREFIX $LIBXML2_INSTALL_PREFIX
+COPY --from=libxml2-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=lua-builder $LUA_INSTALL_PREFIX $LUA_INSTALL_PREFIX
+COPY --from=lua-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=nghttp2-builder $NGHTTP2_INSTALL_PREFIX $NGHTTP2_INSTALL_PREFIX
+COPY --from=nghttp2-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=openssl-builder $OPENSSL_INSTALL_PREFIX $OPENSSL_INSTALL_PREFIX
+COPY --from=openssl-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=pcre2-builder $PCRE2_INSTALL_PREFIX $PCRE2_INSTALL_PREFIX
+COPY --from=pcre2-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=swift-license-fetcher $LICENSES_DIR $LICENSES_DIR
+
+COPY --from=zlib-builder $ZLIB_INSTALL_PREFIX $ZLIB_INSTALL_PREFIX
+COPY --from=zlib-builder $LICENSES_DIR $LICENSES_DIR
+
+COPY ./tools/show-licenses /usr/local/bin/show-licenses
+RUN chmod 755 /usr/local/bin/show-licenses

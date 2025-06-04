@@ -1,0 +1,47 @@
+#!/bin/zsh
+
+set -eu
+
+function fatal-error() {
+  local -r message="${1-}"
+  print -P "%F{red}error: %f$message" >&2
+  exit 1
+}
+
+function isTrue() {
+  if [[ "${(L)1}" == "true" ]]; then
+    return 0
+  fi
+  return 1
+}
+
+local filePath=""
+if [[ $#@ -eq 1 ]]; then
+  filePath="$1"
+elif [[ $#@ -gt 1 ]]; then
+  fatal-error "Unexpected number of arguments."
+fi
+
+if [[ -n "$filePath" ]]; then
+  if [[ ! -f "$filePath" ]]; then
+    fatal-error "File not found at '${filePath}'."
+  fi
+else
+  filePath="-"
+fi
+
+local licenseLine
+local extractingLicense=false
+cat "$filePath" | while read -t 10 licenseLine; do
+  setopt nocasematch
+  if [[ "$licenseLine" =~ '<A NAME="license">License</A>' ]]; then
+    extractingLicense=true
+  elif [[ "$licenseLine" =~ '</BODY>' ]]; then
+    extractingLicense=false
+  fi
+
+  if ! isTrue $extractingLicense; then
+    continue
+  fi
+  echo $licenseLine | sed -E 's/<IMG[^>]*ALT="([^"]+)"[^>]*>/\1/ig'
+done
