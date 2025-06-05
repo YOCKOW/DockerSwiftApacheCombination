@@ -156,7 +156,7 @@ jobs:
     needs: 
       - set-constants
       - build-test-pushIfNecessary
-    if: ${{ needs.set-constants.outputs.DOCKER_TAG_NAME_CORE != '' }}
+    if: ${{ needs.build-test-pushIfNecessary.result == 'success' && needs.set-constants.outputs.DOCKER_TAG_NAME_CORE != '' }}
     strategy:
       matrix:
         swift-version: ${{ fromJson(needs.set-constants.outputs.SWIFT_VERSIONS) }}
