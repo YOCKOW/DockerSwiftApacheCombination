@@ -118,6 +118,8 @@ jobs:
           push: false
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+          provenance: false
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Test Image
@@ -139,6 +141,8 @@ jobs:
           push: true
           tags: "${{ env.DOCKER_FULL_IMAGE_NAME }}:${{ steps.tag-name.outputs.raw_tag_name }}"
           labels: ${{ steps.metadata.outputs.labels }}
+          provenance: false
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Generate artifact attestation if necessary
@@ -192,4 +196,3 @@ jobs:
           docker manifest annotate ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME} \
             ${DOCKER_FULL_IMAGE_NAME}@$digest_arm64 --os linux --arch arm64
           docker manifest push ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME}
-          
