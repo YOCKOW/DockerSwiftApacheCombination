@@ -185,14 +185,7 @@ jobs:
         env:
           TAG_NAME: swift${{ matrix.swift-version }}-${{ env.DOCKER_TAG_NAME_CORE }}
         run: |
-          digest_amd64=$(docker buildx imagetools inspect ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME}-amd64 --raw | jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest')
-          digest_arm64=$(docker buildx imagetools inspect ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME}-arm64 --raw | jq -r '.manifests[] | select(.platform.architecture=="arm64") | .digest')
-
-          docker manifest create ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME} \
-            ${DOCKER_FULL_IMAGE_NAME}@$digest_amd64 \
-            ${DOCKER_FULL_IMAGE_NAME}@$digest_arm64
-          docker manifest annotate ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME} \
-            ${DOCKER_FULL_IMAGE_NAME}@$digest_amd64 --os linux --arch amd64
-          docker manifest annotate ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME} \
-            ${DOCKER_FULL_IMAGE_NAME}@$digest_arm64 --os linux --arch arm64
-          docker manifest push ${DOCKER_FULL_IMAGE_NAME}:${TAG_NAME}
+          docker manifest create "$DOCKER_FULL_IMAGE_NAME":"$TAG_NAME" \
+            "$DOCKER_FULL_IMAGE_NAME":"$TAG_NAME"-amd64 \
+            "$DOCKER_FULL_IMAGE_NAME":"$TAG_NAME"-arm64
+          docker manifest push "$DOCKER_FULL_IMAGE_NAME":"$TAG_NAME"
