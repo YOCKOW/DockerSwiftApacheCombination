@@ -1,0 +1,190 @@
+name: Build Image (Composite Action)
+inputs:
+  context:
+    description: "Build Context"
+    required: true
+  build-args:
+    description: "Build Arguments"
+    required: false
+    default: ""
+  registry:
+    description: "Docker Registry"
+    required: false
+    default: ""
+  username:
+    description: "User Name for Docker Registry"
+    required: false
+    default: ""
+  password:
+    description: "Password to login Docker Registry"
+    required: false
+    default: ""
+  image-basename:
+    description: "Image Base Name"
+    require: true
+  tag-basenames:
+    description: "Tag Base Names (List separated by newlines)"
+    require: true
+  test-command:
+    description: "Command to be executed after building the image and before pushing it"
+    require: false
+    default: ""
+  test-command-shell:
+    description: "Shell to execute the command"
+    require: false
+    default: ""
+  test-script:
+    description: "Script to be executed after building the image and before pushing it"
+    require: false
+    default: ""
+  push:
+    description: "A value indicating whether or not to push the image"
+    require: true
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Install zsh
+      shell: bash
+      run: |
+        echo '::group::Installing zsh...'
+        sudo apt update && sudo apt install zsh
+        echo '::endgroup::'
+    - name: Detect 'arch' and 'platform'
+      id: arch-and-platform
+      shell: zsh {0}
+      run: |
+        case "$(dpkg --print-architecture)" in
+        amd64)
+          echo "arch=amd64" >>"$GITHUB_OUTPUT"
+          echo "platform=linux/amd64" >>"$GITHUB_OUTPUT"
+        ;;
+        arm64)
+          echo "arch=arm64" >>"$GITHUB_OUTPUT"
+          echo "platform=linux/arm64" >>"$GITHUB_OUTPUT"
+        ;;
+        *)
+          echo '::error::Unsupported architecture.'
+          exit 1
+        ;;
+        esac
+    - name: Generate Image Name Info
+      id: image-name-info
+      env:
+        D_REGISTRY: ${{ inputs.registry }}
+        D_USERNAME: ${{ inputs.username }}
+        D_IMAGE_BASENAME: ${{ inputs.image-basename }}
+      shell: zsh {0}
+      run: |
+        set -eu
+
+        if [[ -z "$D_IMAGE_BASENAME" ]]; then
+          echo '::error title=Missing image name::No image base name was given.'
+          exit 1
+        fi
+
+        image_namespace=""
+        if [[ -n "$D_REGISTRY" ]]; then
+          image_namespace="${image_namespace}${(L)D_REGISTRY}/"
+        fi
+        if [[ -n "$D_USERNAME" ]]; then
+          image_namespace="${image_namespace}${(L)D_USERNAME}/"
+        fi
+        image_namespace="${image_namespace%%/}"
+        full_image_name="${image_namespace}/${(L)D_IMAGE_BASENAME}"
+        full_image_name="${full_image_name##/}"
+
+        if [[ -z "$full_image_name" ]]; then
+          echo '::error::Empty Image Name.'
+          exit 1
+        fi
+
+        echo "image_namespace=$image_namespace" >>"$GITHUB_OUTPUT"
+        echo "full_image_name=$full_image_name" >>"$GITHUB_OUTPUT"
+    - name: "Generate `tags` argument for 'docker/metadata-action'"
+      id: tags-for-metadata-action
+      env:
+        D_TAG_BASENAMES: ${{ inputs.tag-basenames }}
+        D_ARCH: ${{ steps.arch-and-platform.outputs.arch }}
+      shell: zsh {0}
+      run: |
+        echo "tags<<__TAGS__" >>"$GITHUB_OUTPUT"
+        for tag in ${(f)D_TAG_BASENAMES}; do
+          echo "type=raw,value=${tag}-${D_ARCH}" >>"$GITHUB_OUTPUT"
+        done
+        echo "__TAGS__" >>"$GITHUB_OUTPUT"
+    - name: Confirmation
+      env:
+        D_ARCH: ${{ steps.arch-and-platform.outputs.arch }}
+        D_PLATFORM: ${{ steps.arch-and-platform.outputs.platform }}
+        D_IMAGE_NAMESPACE: ${{ steps.image-name-info.outputs.image_namespace }}
+        D_FULL_IMAGE_NAME: ${{ steps.image-name-info.outputs.full_image_name }}
+        D_TAGS: ${{ steps.tags-for-metadata-action.outputs.tags }}
+      shell: zsh {0}
+      run: |
+        echo "::notice::arch: $D_ARCH"
+        echo "::notice::platform: $D_PLATFORM"
+        echo "::notice::image_namespace: $D_IMAGE_NAMESPACE"
+        echo "::notice::full_image_name: $D_FULL_IMAGE_NAME"
+        echo "::notice::tags: $D_TAGS"
+    - name: Set up Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Log in to the Container registry
+      if: ${{ inputs.username != '' && inputs.password != '' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+    - name: Extract metadata (tags, labels) for Docker
+      id: metadata
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ steps.image-name-info.outputs.full_image_name }}
+        tags: ${{ steps.tags-for-metadata-action.outputs.tags }}
+    - name: Build Image
+      id: build-image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        build-args: ${{ inputs.build-args }}
+        platforms: ${{ steps.arch-and-platform.outputs.platform }}
+        load: true
+        push: false
+        tags: ${{ steps.metadata.outputs.tags }}
+        labels: ${{ steps.metadata.outputs.labels }}
+        provenance: false
+        sbom: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    - name: Test Image (Command)
+      if: ${{ inputs.test-command != '' }}
+      shell: ${{ inputs.test-command-shell || 'zsh {0}' }}
+      run: ${{ inputs.test-command }}
+    - name: Test Image (Script)
+      if: ${{ inputs.test-script != '' }}
+      shell: zsh {0}
+      run: |-
+        if [[ ! -f "${{ inputs.test-script }}" ]]; then
+          echo '::error title=Missing test script::Script file not found.'
+          exit 1
+        fi
+        chmod a+x "${{ inputs.test-script }}"
+        "${{ inputs.test-script }}"
+    - name: Push Image
+      if: ${{ inputs.push == 'true' }}
+      id: push-image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        build-args: ${{ inputs.build-args }}
+        platforms: ${{ steps.arch-and-platform.outputs.platform }}
+        load: false
+        push: true
+        tags: ${{ steps.metadata.outputs.tags }}
+        labels: ${{ steps.metadata.outputs.labels }}
+        provenance: false
+        sbom: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
