@@ -10,18 +10,37 @@ on:
     branches:
       - "**"
 jobs:
-  build-private-build-base:
-    strategy:
-        matrix:
-          host-os:
-            - ubuntu-24.04
-            - ubuntu-24.04-arm
-    runs-on: ${{ matrix.host-os }}
+  constants:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/workflows/composite/build-image
-        with:
-          context: ./images/private-build-base
-          image-basename: private-build-base
-          tag-basenames: latest
-          push: false
+      - name: Define Constants
+        run: echo "::notice::Defining Constants..."
+    outputs:
+      DOCKER_REGISTRY: ghcr.io
+      DOCKER_USERNAME: ${{ github.actor }}
+      DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
+      DOCKER_IMAGE_BASENAME: swift-de-cgi
+      LUA_VERSION: 5.4.8
+      LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
+  build-lua:
+    needs:
+      - constants
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/Lua/Dockerfile
+      build-args: |
+        LUA_VERSION=${{ needs.constants.outputs.LUA_VERSION }}
+        LUA_HASH=${{ needs.constants.outputs.LUA_HASH }}
+      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
+      tags: lua-${{ needs.constants.outputs.LUA_VERSION }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}

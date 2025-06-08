@@ -1,0 +1,330 @@
+name: Build Multiplatform Image
+on:
+  workflow_call:
+    inputs:
+      if-absent:
+        description: "A boolean value that indicates whether or not the image should be built only when there's no existing image."
+        type: boolean
+        required: false
+        default: true
+      context:
+        description: "Build Context"
+        type: string
+        required: false
+        default: "."
+      dockerfile:
+        description: "Path to the Dockerfile"
+        type: string
+        required: false
+      build-args:
+        description: "Build Arguments"
+        type: string
+        required: false
+        default: ""
+      registry:
+        description: "Docker Registry"
+        type: string
+        required: false
+        default: ""
+      username:
+        description: "User Name for Docker Registry"
+        type: string
+        required: false
+        default: ""
+      image-basename:
+        description: "Image Base Name"
+        type: string
+        required: true
+      tags:
+        description: "Tag Names (List separated by newlines)"
+        type: string
+        required: true
+      test-command:
+        description: "Command to be executed after building the image and before pushing it"
+        type: string
+        required: false
+        default: ""
+      test-command-shell:
+        description: "Shell to execute the command: `bash` or `zsh`."
+        type: string
+        required: false
+        default: "bash"
+      test-script:
+        description: "Script to be executed after building the image and before pushing it"
+        type: string
+        required: false
+        default: ""
+      push:
+        description: "A boolean value indicating whether or not the image is pushed"
+        type: boolean
+        required: true
+        default: false
+    secrets:
+      password:
+        description: "Password to login Docker Registry"
+        required: false
+jobs:
+  generate-image-name-info:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install zsh
+        run: sudo apt update && sudo apt install zsh
+      - name: Generate Image Name Info
+        id: image-name-info
+        env:
+          D_REGISTRY: ${{ inputs.registry }}
+          D_USERNAME: ${{ inputs.username }}
+          D_IMAGE_BASENAME: ${{ inputs.image-basename }}
+          D_TAGS: ${{ inputs.tags }}
+        shell: zsh {0}
+        run: |
+          set -eu
+
+          if [[ -z "$D_IMAGE_BASENAME" ]]; then
+            echo '::error title=Missing image name::No image base name was given.'
+            exit 1
+          fi
+
+          declare image_namespace=""
+          if [[ -n "$D_REGISTRY" ]]; then
+            image_namespace="${image_namespace}${(L)D_REGISTRY}/"
+          fi
+          if [[ -n "$D_USERNAME" ]]; then
+            image_namespace="${image_namespace}${(L)D_USERNAME}/"
+          fi
+          image_namespace="${image_namespace%%/}"
+
+          declare full_image_name="${image_namespace}/${(L)D_IMAGE_BASENAME}"
+          full_image_name="${full_image_name##/}"
+          if [[ -z "$full_image_name" ]]; then
+            echo '::error::Empty Image Name.'
+            exit 1
+          fi
+
+          echo "image_namespace=$image_namespace" >>"$GITHUB_OUTPUT"
+          echo "full_image_name=$full_image_name" >>"$GITHUB_OUTPUT"
+
+          echo "full_image_tags<<__FULL_IMAGE_TAGS__" >>"$GITHUB_OUTPUT"
+          declare tagLine
+          for tagLine in ${(f)D_TAGS}; do
+            echo "${full_image_name}:${tagLine}" >>"$GITHUB_OUTPUT"
+          done
+          echo "__FULL_IMAGE_TAGS__" >>"$GITHUB_OUTPUT"
+    outputs:
+      image_namespace: ${{ steps.image-name-info.outputs.image_namespace }}
+      full_image_name: ${{ steps.image-name-info.outputs.full_image_name }}
+      full_image_tags: ${{ steps.image-name-info.outputs.full_image_tags }}
+  determine-whether-to-build:
+    needs:
+      - generate-image-name-info
+    runs-on: ubuntu-latest
+    env:
+      password: ${{ secrets.password }}
+    steps:
+      - name: Install zsh
+        run: sudo apt update && sudo apt install zsh
+      - name: Log in to the Container registry
+        if: ${{ inputs.username != '' && env.password != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ inputs.username }}
+          password: ${{ secrets.password }}
+      - name: Determine whether or not an image should be built
+        id: should-build
+        env:
+          IF_ABSENT: ${{ (inputs.if-absent && 'true') || 'false' }}
+          D_FULL_IMAGE_TAGS: ${{ needs.generate-image-name-info.outputs.full_image_tags }}
+        shell: zsh {0}
+        run: |
+          if [[ "$IF_ABSENT" != "true" ]]; then
+            echo "should_build=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          set +e
+          declare full_image_tag
+          for full_image_tag in ${(f)D_FULL_IMAGE_TAGS}; do
+            docker manifest inspect "$full_image_tag"
+            if [[ $? -ne 0 ]]; then
+              echo "should_build=true" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "should_build=false" >>"$GITHUB_OUTPUT"
+    outputs:
+      should_build: ${{ steps.should-build.outputs.should_build }}
+  build-images:
+    needs: 
+      - generate-image-name-info
+      - determine-whether-to-build
+    if: ${{ needs.determine-whether-to-build.outputs.should_build == 'true' }}
+    env:
+      password: ${{ secrets.password }}
+    strategy:
+      matrix:
+        host-os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+    runs-on: ${{ matrix.host-os }}
+    steps:
+      - name: Install zsh
+        run: sudo apt update && sudo apt install zsh
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Detect 'arch' and 'platform'
+        id: arch-and-platform
+        shell: zsh {0}
+        run: |
+          case "$(dpkg --print-architecture)" in
+          amd64)
+            echo "arch=amd64" >>"$GITHUB_OUTPUT"
+            echo "platform=linux/amd64" >>"$GITHUB_OUTPUT"
+          ;;
+          arm64)
+            echo "arch=arm64" >>"$GITHUB_OUTPUT"
+            echo "platform=linux/arm64" >>"$GITHUB_OUTPUT"
+          ;;
+          *)
+            echo '::error::Unsupported architecture.'
+            exit 1
+          ;;
+          esac
+      - name: "Generate `tags` argument for 'docker/metadata-action'"
+        id: tags-for-metadata-action
+        env:
+          D_TAGS: ${{ inputs.tags }}
+          D_ARCH: ${{ steps.arch-and-platform.outputs.arch }}
+        shell: zsh {0}
+        run: |
+          echo "tags<<__TAGS__" >>"$GITHUB_OUTPUT"
+          for tag in ${(f)D_TAGS}; do
+            echo "type=raw,value=${tag}-${D_ARCH}" >>"$GITHUB_OUTPUT"
+          done
+          echo "__TAGS__" >>"$GITHUB_OUTPUT"
+      - name: Generate a tag for tests
+        id: test-tag
+        shell: zsh {0}
+        run: |
+          declare -r generated_uuid=$(uuidgen)
+          echo "test_tag=test-${(L)generated_uuid}" >>"$GITHUB_OUTPUT"
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to the Container registry
+        if: ${{ inputs.username != '' && env.password != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ inputs.username }}
+          password: ${{ secrets.password }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.generate-image-name-info.outputs.full_image_name }}
+          tags: ${{ steps.tags-for-metadata-action.outputs.tags }}
+      - name: Build Image
+        id: build-image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          build-args: ${{ inputs.build-args }}
+          platforms: ${{ steps.arch-and-platform.outputs.platform }}
+          load: true
+          push: false
+          tags: |
+            ${{ steps.metadata.outputs.tags }}
+            ${{ needs.generate-image-name-info.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Test Image (Command)
+        if: ${{ inputs.test-command != '' }}
+        # Workaround for 'shell' not taking `${{ ... }}`
+        env:
+          TEST_COMMAND_SHELL: ${{ inputs.test-command-shell }}
+          TEST_COMMAND: ${{ inputs.test-command }}
+          DOCKER_TEST_TAG: "${{ needs.generate-image-name-info.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}"
+        run: |
+          case "$TEST_COMMAND_SHELL" in
+          bash)
+            bash -c "$TEST_COMMAND"
+          ;;
+          zsh)
+            sudo apt update && sudo apt install zsh
+            zsh -c "$TEST_COMMAND"
+          ;;
+          *)
+            echo '::error::Unsupported shell.'
+            exit 1
+          ;;
+          esac
+      - name: Test Image (Script File)
+        if: ${{ inputs.test-script != '' }}
+        env:
+          DOCKER_TEST_TAG: "${{ needs.generate-image-name-info.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}"
+        run: |
+          if [[ ! -f "${{ inputs.test-script }}" ]]; then
+            echo '::error title=Missing test script::Script file not found.'
+            exit 1
+          fi
+          chmod a+x "${{ inputs.test-script }}"
+          "${{ inputs.test-script }}"
+      - name: Push Image
+        id: push-image
+        if: ${{ inputs.push }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          build-args: ${{ inputs.build-args }}
+          platforms: ${{ steps.arch-and-platform.outputs.platform }}
+          load: false
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+  merge-images:
+    needs:
+      - generate-image-name-info
+      - determine-whether-to-build
+      - build-images
+    if: ${{ inputs.push && needs.determine-whether-to-build.outputs.should_build == 'true' }}
+    runs-on:
+      - ubuntu-latest
+    env:
+      password: ${{ secrets.password }}
+    steps:
+      - name: Install zsh
+        run: sudo apt update && sudo apt install zsh
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to the Container registry
+        if: ${{ inputs.username != '' && env.password != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ inputs.username }}
+          password: ${{ secrets.password }}
+      - name: Merge Images
+        env:
+          D_FULL_IMAGE_TAGS: ${{ needs.generate-image-name-info.outputs.full_image_tags }}
+        shell: zsh {0}
+        run: |
+          declare full_image_tag
+          for full_image_tag in ${(f)D_FULL_IMAGE_TAGS}; do
+            docker manifest create "$full_image_tag" \
+              "${full_image_tag}-amd64" \
+              "${full_image_tag}-arm64"
+            docker manifest annotate "$full_image_tag" \
+              "${full_image_tag}-amd64" --os linux --arch amd64
+            docker manifest annotate "$full_image_tag" \
+              "${full_image_tag}-arm64" --os linux --arch arm64
+            docker manifest push "$full_image_tag"
+          done
