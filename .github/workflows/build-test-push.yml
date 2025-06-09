@@ -16,6 +16,7 @@ permissions:
   id-token: write
 jobs:
   constants:
+    name: Set Global Constants
     runs-on: ubuntu-latest
     steps:
       - name: Define Constants
@@ -50,6 +51,7 @@ jobs:
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
       PCRE2_VERSION: "10.45"
   generate-tags:
+    name: Generate Tags for Each Image
     needs:
       - constants
     runs-on: ubuntu-latest
@@ -74,6 +76,7 @@ jobs:
       LUA_TAGS: ${{ steps.lua-tags.outputs.joined }}
       PCRE2_TAGS: ${{ steps.pcre2-tags.outputs.joined }}
   build-lua:
+    name: Build Lua
     needs:
       - constants
       - generate-tags
@@ -92,6 +95,7 @@ jobs:
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
   build-pcre2:
+    name: Build PCRE2
     needs:
       - constants
       - generate-tags

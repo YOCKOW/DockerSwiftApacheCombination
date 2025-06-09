@@ -65,6 +65,7 @@ on:
         required: false
 jobs:
   generate-image-name-info:
+    name: Generate Image Name Info
     runs-on: ubuntu-latest
     steps:
       - name: Generate Image Name Info
@@ -113,6 +114,7 @@ jobs:
       full_image_name: ${{ steps.image-name-info.outputs.full_image_name }}
       full_image_tags: ${{ steps.image-name-info.outputs.full_image_tags }}
   determine-whether-to-build:
+    name: Determine whether or not an image should be built
     needs:
       - generate-image-name-info
     runs-on: ubuntu-latest
@@ -151,6 +153,7 @@ jobs:
     outputs:
       should_build: ${{ steps.should-build.outputs.should_build }}
   build-images:
+    name: Build Images (if necessary)
     needs: 
       - generate-image-name-info
       - determine-whether-to-build
@@ -285,6 +288,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
   merge-images:
+    name: Merge Images (if necessary)
     needs:
       - generate-image-name-info
       - determine-whether-to-build
