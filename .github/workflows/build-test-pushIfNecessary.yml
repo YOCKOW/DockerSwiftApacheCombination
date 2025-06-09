@@ -9,6 +9,11 @@ on:
   pull_request:
     branches:
       - "**"
+permissions:
+  packages: write
+  contents: read
+  attestations: write
+  id-token: write
 jobs:
   constants:
     runs-on: ubuntu-latest
@@ -41,9 +46,10 @@ jobs:
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIX: ${{ steps.define-constants.outputs.tag_name_suffix }}
-      LUA_VERSION: 5.4.8
+      LUA_VERSION: "5.4.8"
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
-  generate-lua-tags:
+      PCRE2_VERSION: "10.45"
+  generate-tags:
     needs:
       - constants
     runs-on: ubuntu-latest
@@ -57,17 +63,20 @@ jobs:
             suffixes: |
               ${{ needs.constants.outputs.LUA_VERSION }}
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
+        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+          id: pcre2-tags
+          with:
+            prefixes: PCRE2-
+            suffixes: |
+              ${{ needs.constants.outputs.PCRE2_VERSION }}
+              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
     outputs:
       LUA_TAGS: ${{ steps.lua-tags.outputs.joined }}
+      PCRE2_TAGS: ${{ steps.pcre2-tags.outputs.joined }}
   build-lua:
     needs:
       - constants
-      - generate-lua-tags
-    permissions:
-      packages: write
-      contents: read
-      attestations: write
-      id-token: write
+      - generate-tags
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
       dockerfile: ./images/deps/Lua/Dockerfile
@@ -77,7 +86,23 @@ jobs:
       registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
       username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
       image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      tags: ${{ needs.generate-lua-tags.outputs.LUA_TAGS }}
+      tags: ${{ needs.generate-tags.outputs.LUA_TAGS }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
+  build-pcre2:
+    needs:
+      - constants
+      - generate-tags
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/PCRE2/Dockerfile
+      build-args: PCRE2_VERSION=${{ needs.constants.outputs.PCRE2_VERSION }}
+      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
+      tags: ${{ needs.generate-tags.outputs.PCRE2_TAGS }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:

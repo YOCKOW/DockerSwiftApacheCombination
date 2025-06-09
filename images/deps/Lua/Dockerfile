@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Dockerfile
+# images/deps/Lua/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.
