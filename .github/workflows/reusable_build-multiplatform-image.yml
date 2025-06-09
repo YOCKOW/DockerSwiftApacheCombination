@@ -67,8 +67,6 @@ jobs:
   generate-image-name-info:
     runs-on: ubuntu-latest
     steps:
-      - name: Install zsh
-        run: sudo apt update && sudo apt install zsh
       - name: Generate Image Name Info
         id: image-name-info
         env:
@@ -76,7 +74,7 @@ jobs:
           D_USERNAME: ${{ inputs.username }}
           D_IMAGE_BASENAME: ${{ inputs.image-basename }}
           D_TAGS: ${{ inputs.tags }}
-        shell: zsh {0}
+        shell: bash
         run: |
           set -eu
 
@@ -87,14 +85,14 @@ jobs:
 
           declare image_namespace=""
           if [[ -n "$D_REGISTRY" ]]; then
-            image_namespace="${image_namespace}${(L)D_REGISTRY}/"
+            image_namespace="${image_namespace}${D_REGISTRY,,}/"
           fi
           if [[ -n "$D_USERNAME" ]]; then
-            image_namespace="${image_namespace}${(L)D_USERNAME}/"
+            image_namespace="${image_namespace}${D_USERNAME,,}/"
           fi
           image_namespace="${image_namespace%%/}"
 
-          declare full_image_name="${image_namespace}/${(L)D_IMAGE_BASENAME}"
+          declare full_image_name="${image_namespace}/${D_IMAGE_BASENAME,,}"
           full_image_name="${full_image_name##/}"
           if [[ -z "$full_image_name" ]]; then
             echo '::error::Empty Image Name.'
@@ -106,9 +104,9 @@ jobs:
 
           echo "full_image_tags<<__FULL_IMAGE_TAGS__" >>"$GITHUB_OUTPUT"
           declare tagLine
-          for tagLine in ${(f)D_TAGS}; do
+          while IFS= read -r tagLine; do
             echo "${full_image_name}:${tagLine}" >>"$GITHUB_OUTPUT"
-          done
+          done < <(echo "$D_TAGS")
           echo "__FULL_IMAGE_TAGS__" >>"$GITHUB_OUTPUT"
     outputs:
       image_namespace: ${{ steps.image-name-info.outputs.image_namespace }}
@@ -121,8 +119,6 @@ jobs:
     env:
       password: ${{ secrets.password }}
     steps:
-      - name: Install zsh
-        run: sudo apt update && sudo apt install zsh
       - name: Log in to the Container registry
         if: ${{ inputs.username != '' && env.password != '' }}
         uses: docker/login-action@v3
@@ -135,7 +131,7 @@ jobs:
         env:
           IF_ABSENT: ${{ (inputs.if-absent && 'true') || 'false' }}
           D_FULL_IMAGE_TAGS: ${{ needs.generate-image-name-info.outputs.full_image_tags }}
-        shell: zsh {0}
+        shell: bash
         run: |
           if [[ "$IF_ABSENT" != "true" ]]; then
             echo "should_build=true" >>"$GITHUB_OUTPUT"
@@ -144,13 +140,13 @@ jobs:
 
           set +e
           declare full_image_tag
-          for full_image_tag in ${(f)D_FULL_IMAGE_TAGS}; do
+          while IFS= read -r full_image_tag; do
             docker manifest inspect "$full_image_tag"
             if [[ $? -ne 0 ]]; then
               echo "should_build=true" >>"$GITHUB_OUTPUT"
               exit 0
             fi
-          done
+          done < <(echo "$D_FULL_IMAGE_TAGS")
           echo "should_build=false" >>"$GITHUB_OUTPUT"
     outputs:
       should_build: ${{ steps.should-build.outputs.should_build }}
@@ -168,13 +164,10 @@ jobs:
           - ubuntu-24.04-arm
     runs-on: ${{ matrix.host-os }}
     steps:
-      - name: Install zsh
-        run: sudo apt update && sudo apt install zsh
       - name: Checkout Repository
         uses: actions/checkout@v4
       - name: Detect 'arch' and 'platform'
         id: arch-and-platform
-        shell: zsh {0}
         run: |
           case "$(dpkg --print-architecture)" in
           amd64)
@@ -195,19 +188,20 @@ jobs:
         env:
           D_TAGS: ${{ inputs.tags }}
           D_ARCH: ${{ steps.arch-and-platform.outputs.arch }}
-        shell: zsh {0}
+        shell: bash
         run: |
           echo "tags<<__TAGS__" >>"$GITHUB_OUTPUT"
-          for tag in ${(f)D_TAGS}; do
+          declare tag
+          while IFS= read -r tag; do
             echo "type=raw,value=${tag}-${D_ARCH}" >>"$GITHUB_OUTPUT"
-          done
+          done < <(echo "$D_TAGS")
           echo "__TAGS__" >>"$GITHUB_OUTPUT"
       - name: Generate a tag for tests
         id: test-tag
-        shell: zsh {0}
+        shell: bash
         run: |
           declare -r generated_uuid=$(uuidgen)
-          echo "test_tag=test-${(L)generated_uuid}" >>"$GITHUB_OUTPUT"
+          echo "test_tag=test-${generated_uuid,,}" >>"$GITHUB_OUTPUT"
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to the Container registry
@@ -301,8 +295,6 @@ jobs:
     env:
       password: ${{ secrets.password }}
     steps:
-      - name: Install zsh
-        run: sudo apt update && sudo apt install zsh
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to the Container registry
@@ -315,10 +307,10 @@ jobs:
       - name: Merge Images
         env:
           D_FULL_IMAGE_TAGS: ${{ needs.generate-image-name-info.outputs.full_image_tags }}
-        shell: zsh {0}
+        shell: bash
         run: |
           declare full_image_tag
-          for full_image_tag in ${(f)D_FULL_IMAGE_TAGS}; do
+          while IFS= read -r full_image_tag; do
             docker manifest create "$full_image_tag" \
               "${full_image_tag}-amd64" \
               "${full_image_tag}-arm64"
@@ -327,4 +319,4 @@ jobs:
             docker manifest annotate "$full_image_tag" \
               "${full_image_tag}-arm64" --os linux --arch arm64
             docker manifest push "$full_image_tag"
-          done
+          done < <(echo "$D_FULL_IMAGE_TAGS")
