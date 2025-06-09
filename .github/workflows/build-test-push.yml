@@ -50,6 +50,7 @@ jobs:
       LUA_VERSION: "5.4.8"
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
       PCRE2_VERSION: "10.45"
+      ZLIB_VERSION: "1.3.1"
   generate-tags:
     name: Generate Tags for Each Image
     needs:
@@ -72,9 +73,17 @@ jobs:
             suffixes: |
               ${{ needs.constants.outputs.PCRE2_VERSION }}
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
+        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+          id: zlib-tags
+          with:
+            prefixes: zlib-
+            suffixes: |
+              ${{ needs.constants.outputs.ZLIB_VERSION }}
+              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
     outputs:
       LUA_TAGS: ${{ steps.lua-tags.outputs.joined }}
       PCRE2_TAGS: ${{ steps.pcre2-tags.outputs.joined }}
+      ZLIB_TAGS: ${{ steps.zlib-tags.outputs.joined }}
   build-lua:
     name: Build Lua
     needs:
@@ -107,6 +116,23 @@ jobs:
       username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
       image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
       tags: ${{ needs.generate-tags.outputs.PCRE2_TAGS }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
+  build-zlib:
+    name: Build zlib
+    needs:
+      - constants
+      - generate-tags
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/zlib/Dockerfile
+      build-args: ZLIB_VERSION=${{ needs.constants.outputs.ZLIB_VERSION }}
+      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
+      tags: ${{ needs.generate-tags.outputs.ZLIB_TAGS }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
