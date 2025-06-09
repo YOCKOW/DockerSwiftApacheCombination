@@ -14,17 +14,55 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Define Constants
-        run: echo "::notice::Defining Constants..."
+        id: define-constants
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          echo "::notice::Defining Constants..."
+          case "$REF_TYPE" in
+          branch)
+            if [[ "$REF_NAME" == "main" ]]; then
+              echo "tag_name_suffix=latest" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+          ;;
+          tag)
+            if [[ "$REF_NAME" == release-* ]] || [[ "$REF_NAME" == push-test-* ]]; then
+              echo "tag_name_suffix=$REF_NAME" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+          ;;
+          esac
+          echo "tag_name_suffix=" >>"$GITHUB_OUTPUT"
     outputs:
       DOCKER_REGISTRY: ghcr.io
       DOCKER_USERNAME: ${{ github.actor }}
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_IMAGE_BASENAME: swift-de-cgi
+      DOCKER_TAG_NAME_SUFFIX: ${{ steps.define-constants.outputs.tag_name_suffix }}
       LUA_VERSION: 5.4.8
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
+  generate-lua-tags:
+    needs:
+      - constants
+    runs-on: ubuntu-latest
+    steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+          id: lua-tags
+          with:
+            prefixes: Lua-
+            suffixes: |
+              ${{ needs.constants.outputs.LUA_VERSION }}
+              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
+    outputs:
+      LUA_TAGS: ${{ steps.lua-tags.outputs.joined }}
   build-lua:
     needs:
       - constants
+      - generate-lua-tags
     permissions:
       packages: write
       contents: read
@@ -39,7 +77,7 @@ jobs:
       registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
       username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
       image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      tags: lua-${{ needs.constants.outputs.LUA_VERSION }}
+      tags: ${{ needs.generate-lua-tags.outputs.LUA_TAGS }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:

@@ -1,0 +1,48 @@
+name: Join Prefixes and Suffixes
+inputs:
+  prefixes:
+    description: List of prefixes (separated by newlines)
+    required: true
+  suffixes:
+    description: List of suffixes (separated by newlines)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Join Prefixes and Suffixes
+      id: joiner
+      shell: bash
+      env:
+        RAW_PREFIXES: ${{ inputs.prefixes }}
+        RAW_SUFFIXES: ${{ inputs.suffixes }}
+      run: |
+        set -eu
+
+        tmpFile=$(mktemp)
+        prefixes=$(echo "$RAW_PREFIXES" | sort -u | awk NF)
+        suffixes=$(echo "$RAW_SUFFIXES" | sort -u | awk NF)
+
+        if [[ -z "$prefixes" ]]; then
+          if [[ -z "$suffixes" ]]; then
+            echo "::error::Both prefixes and suffixes are empty?!"
+            exit 1
+          fi
+          # No prefixes
+          echo "$suffixes" >"$tmpFile"
+        elif [[ -z "$suffixes" ]]; then
+          echo "$prefixes" >"$tmpeFile"
+        else
+          while IFS= read -r aPrefix; do
+            while IFS= read -r aSuffix; do
+              echo "${aPrefix}${aSuffix}" >>"$tmpFile"
+            done < <(echo "$suffixes")
+          done < <(echo "$prefixes")
+        fi
+
+        echo "joined<<__JOINED__" >>"$GITHUB_OUTPUT"
+        sort -u "$tmpFile" | awk NF >>"$GITHUB_OUTPUT"
+        echo "__JOINED__" >>"$GITHUB_OUTPUT"
+outputs:
+  joined:
+    description: List of joined strings (separated by newlines)
+    value: ${{ steps.joiner.outputs.joined }}
