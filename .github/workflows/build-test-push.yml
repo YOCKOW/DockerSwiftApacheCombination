@@ -47,6 +47,7 @@ jobs:
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIX: ${{ steps.define-constants.outputs.tag_name_suffix }}
+      EXPAT_VERSION: "2.7.1"
       LUA_VERSION: "5.4.8"
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
       PCRE2_VERSION: "10.45"
@@ -59,6 +60,13 @@ jobs:
     steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
+        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+          id: expat-tags
+          with:
+            prefixes: Expat-
+            suffixes: |
+              ${{ needs.constants.outputs.EXPAT_VERSION }}
+              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
         - uses: ./.github/workflows/composite_join-prefixes-suffixes
           id: lua-tags
           with:
@@ -81,9 +89,27 @@ jobs:
               ${{ needs.constants.outputs.ZLIB_VERSION }}
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
     outputs:
+      EXPAT_TAGS: ${{ steps.expat-tags.outputs.joined }}
       LUA_TAGS: ${{ steps.lua-tags.outputs.joined }}
       PCRE2_TAGS: ${{ steps.pcre2-tags.outputs.joined }}
       ZLIB_TAGS: ${{ steps.zlib-tags.outputs.joined }}
+  build-expat:
+    name: Build Expat (libexpat)
+    needs:
+      - constants
+      - generate-tags
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/Expat/Dockerfile
+      build-args: EXPAT_VERSION=${{ needs.constants.outputs.EXPAT_VERSION }}
+      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
+      tags: ${{ needs.generate-tags.outputs.EXPAT_TAGS }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
   build-lua:
     name: Build Lua
     needs:
