@@ -48,6 +48,7 @@ jobs:
       DOCKER_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIX: ${{ steps.define-constants.outputs.tag_name_suffix }}
       EXPAT_VERSION: "2.7.1"
+      LIBXML2_VERSION: "2.14.3"
       LUA_VERSION: "5.4.8"
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
       PCRE2_VERSION: "10.45"
@@ -67,6 +68,14 @@ jobs:
             prefixes: Expat-
             suffixes: |
               ${{ needs.constants.outputs.EXPAT_VERSION }}
+              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
+        - name: Generate Tags for libxml2
+          uses: ./.github/workflows/composite_join-prefixes-suffixes
+          id: libxml2-tags
+          with:
+            prefixes: libxml2-
+            suffixes: |
+              ${{ needs.constants.outputs.LIBXML2_VERSION }}
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
         - name: Generate Tags for Lua
           uses: ./.github/workflows/composite_join-prefixes-suffixes
@@ -94,6 +103,7 @@ jobs:
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
     outputs:
       EXPAT_TAGS: ${{ steps.expat-tags.outputs.joined }}
+      LIBXML2_TAGS: ${{ steps.libxml2-tags.outputs.joined }}
       LUA_TAGS: ${{ steps.lua-tags.outputs.joined }}
       PCRE2_TAGS: ${{ steps.pcre2-tags.outputs.joined }}
       ZLIB_TAGS: ${{ steps.zlib-tags.outputs.joined }}
@@ -163,6 +173,26 @@ jobs:
       username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
       image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
       tags: ${{ needs.generate-tags.outputs.ZLIB_TAGS }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
+  build-libxml2:
+    name: Build libxml2
+    needs:
+      - constants
+      - generate-tags
+      - build-zlib
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/libxml2/Dockerfile
+      build-args: |
+        LIBXML2_VERSION=${{ needs.constants.outputs.LIBXML2_VERSION }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
+      tags: ${{ needs.generate-tags.outputs.LIBXML2_TAGS }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
