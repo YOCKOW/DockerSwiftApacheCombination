@@ -417,14 +417,68 @@ jobs:
           echo "resultsJSON<<__RESULTS_JSON__" >>"$GITHUB_OUTPUT"
           echo "$resultsJSON" >>"$GITHUB_OUTPUT"
           echo "__RESULTS_JSON__" >>"$GITHUB_OUTPUT"
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Determine Preferred Image Tag
-        id: determine-preferred-image-tag
-        uses: ./.github/workflows/composite_pick-one-image
+      - name: Generate summary and determine preferred image tag
+        id: summary-and-preferred-image-tag
+        uses: actions/github-script@v7
+        env:
+          BUILD_CONTEXT: ${{ inputs.context }}
+          BUILD_DOCKERFILE: ${{ inputs.dockerfile || './Dockerfile' }}
+          BUILD_ARGS: ${{ inputs.build-args }}
+          BUILD_RESULTS: ${{ steps.generate-results.outputs.resultsJSON }}
         with:
-          build-results-json: ${{ steps.generate-results.outputs.resultsJSON }}
+          result-encoding: string
+          script: |
+            const buildResultsJSON = process.env.BUILD_RESULTS;
+            const parsedResults = JSON.parse(buildResultsJSON);
+            const resultValues = Object.values(parsedResults)
+            if (resultValues.length < 1 || !resultValues.every((resultValue) => typeof resultValue == 'boolean')) {
+              throw new Error("Unexpected results?!");
+            }
+            const tagComparator = (tag1, tag2) => {
+              if (tag1.includes("latest")) {
+                if (!tag2.includes("latest")) {
+                  return -1
+                }
+              }
+              if (tag2.includes("latest")) {
+                return 1;
+              }
+              return tag2.localeCompare(tag1);
+            };
+            const allImageTags = Object.keys(parsedResults).sort((tag1, tag2) => {
+              if (parsedResults[tag1] && !parsedResults[tag2]) {
+                return -1;
+              } else if (!parsedResults[tag1] && parsedResults[tag2]) {
+                return 1;
+              }
+              return tagComparator(tag1, tag2);
+            });
+
+            // Generate Summary
+            const path = require('path');
+            const dockerFilePath = path.join(process.env.BUILD_CONTEXT, process.env.BUILD_DOCKERFILE);
+            await core.summary.addHeading(`Build Results for \`${dockerFilePath}\``);
+            
+            await core.summary.addHeading(
+              'Build Arguments', '2'
+            ).addList(
+              process.env.BUILD_ARGS.split(/\n/)
+            );
+
+            await core.summary.addHeading(
+              'Built Images', '2'
+            ).addList(
+              allImageTags.map((aTag) => {
+                const status = parsedResults[aTag] ? '✅ Built' : '⏭️ Skipped';
+                return `\`${aTag}\`: ${status}`
+              })
+            );
+            
+            await core.summary.write();
+
+            // Return the result
+            return allImageTags[0];
     outputs:
       results: ${{ steps.generate-results.outputs.results }}
       resultsJSON: ${{ steps.generate-results.outputs.resultsJSON }}
-      preferred-image-tag: ${{ steps.determine-preferred-image-tag.outputs.result }}
+      preferred-image-tag: ${{ steps.summary-and-preferred-image-tag.outputs.result }}
