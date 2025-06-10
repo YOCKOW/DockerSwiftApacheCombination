@@ -103,16 +103,17 @@ jobs:
           echo "image_namespace=$image_namespace" >>"$GITHUB_OUTPUT"
           echo "full_image_name=$full_image_name" >>"$GITHUB_OUTPUT"
 
-          echo "full_image_tags<<__FULL_IMAGE_TAGS__" >>"$GITHUB_OUTPUT"
           declare tagLine
+          echo "all_tags<<__ALL_TAGS__" >>"$GITHUB_OUTPUT"
           while IFS= read -r tagLine; do
-            echo "${full_image_name}:${tagLine}" >>"$GITHUB_OUTPUT"
-          done < <(echo "$D_TAGS")
-          echo "__FULL_IMAGE_TAGS__" >>"$GITHUB_OUTPUT"
+            # Trimming...
+            echo "$tagLine" | xargs >>"$GITHUB_OUTPUT"
+          done < <(echo "$D_TAGS" | sort -u | awk NF)
+          echo "__ALL_TAGS__" >>"$GITHUB_OUTPUT"
     outputs:
       image_namespace: ${{ steps.image-name-info.outputs.image_namespace }}
       full_image_name: ${{ steps.image-name-info.outputs.full_image_name }}
-      full_image_tags: ${{ steps.image-name-info.outputs.full_image_tags }}
+      all_tags: ${{ steps.image-name-info.outputs.all_tags }}
   determine-whether-to-build:
     name: Determine whether or not an image should be built
     needs:
@@ -128,30 +129,43 @@ jobs:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.username }}
           password: ${{ secrets.password }}
-      - name: Determine whether or not an image should be built
+      - name: Determine which image should be built
         id: should-build
         env:
           IF_ABSENT: ${{ (inputs.if-absent && 'true') || 'false' }}
-          D_FULL_IMAGE_TAGS: ${{ needs.generate-image-name-info.outputs.full_image_tags }}
+          FULL_IMAGE_NAME: ${{ needs.generate-image-name-info.outputs.full_image_name }}
+          ALL_TAGS: ${{ needs.generate-image-name-info.outputs.all_tags }}
         shell: bash
         run: |
+          declare should_build="false"
+          declare -r tagsToBuildOutput=$(mktemp)
           if [[ "$IF_ABSENT" != "true" ]]; then
-            echo "should_build=true" >>"$GITHUB_OUTPUT"
-            exit 0
+            echo "$ALL_TAGS" >>"$tagsToBuildOutput"
+            should_build="true"
+          else
+            set +e
+            declare tagLine
+            while IFS= read -r tagLine; do
+              if [[ "$tagLine" == *latest* ]]; then
+                echo "$tagLine" >>"$tagsToBuildOutput"
+                should_build="true"
+              else
+                docker manifest inspect "${FULL_IMAGE_NAME}:${tagLine}"
+                if [[ $? -ne 0 ]]; then
+                  echo "$tagLine" >>"$tagsToBuildOutput"
+                  should_build="true"
+                fi
+              fi
+            done < <(echo "$ALL_TAGS")
           fi
 
-          set +e
-          declare full_image_tag
-          while IFS= read -r full_image_tag; do
-            docker manifest inspect "$full_image_tag"
-            if [[ $? -ne 0 ]]; then
-              echo "should_build=true" >>"$GITHUB_OUTPUT"
-              exit 0
-            fi
-          done < <(echo "$D_FULL_IMAGE_TAGS")
-          echo "should_build=false" >>"$GITHUB_OUTPUT"
+          echo "should_build=$should_build" >>"$GITHUB_OUTPUT"
+          echo "tags_to_build<<__TAGS_TO_BUILD__" >>"$GITHUB_OUTPUT"
+          cat "$tagsToBuildOutput" >>"$GITHUB_OUTPUT"
+          echo "__TAGS_TO_BUILD__" >>"$GITHUB_OUTPUT"
     outputs:
       should_build: ${{ steps.should-build.outputs.should_build }}
+      tags_to_build: ${{ steps.should-build.outputs.tags_to_build }}
   build-images:
     name: Build Images (if necessary)
     needs: 
@@ -189,7 +203,7 @@ jobs:
       - name: "Generate `tags` argument for 'docker/metadata-action'"
         id: tags-for-metadata-action
         env:
-          D_TAGS: ${{ inputs.tags }}
+          D_TAGS: ${{ needs.determine-whether-to-build.outputs.tags_to_build }}
           D_ARCH: ${{ steps.arch-and-platform.outputs.arch }}
         shell: bash
         run: |
@@ -310,11 +324,14 @@ jobs:
           password: ${{ secrets.password }}
       - name: Merge Images
         env:
-          D_FULL_IMAGE_TAGS: ${{ needs.generate-image-name-info.outputs.full_image_tags }}
+          FULL_IMAGE_NAME: ${{ needs.generate-image-name-info.outputs.full_image_name }}
+          BUILT_TAGS: ${{ needs.determine-whether-to-build.outputs.tags_to_build }}
         shell: bash
         run: |
+          declare tagLine
           declare full_image_tag
-          while IFS= read -r full_image_tag; do
+          while IFS= read -r tagLine; do
+            full_image_tag="${FULL_IMAGE_NAME}:${tagLine}"
             docker manifest create "$full_image_tag" \
               "${full_image_tag}-amd64" \
               "${full_image_tag}-arm64"
@@ -323,4 +340,4 @@ jobs:
             docker manifest annotate "$full_image_tag" \
               "${full_image_tag}-arm64" --os linux --arch arm64
             docker manifest push "$full_image_tag"
-          done < <(echo "$D_FULL_IMAGE_TAGS")
+          done < <(echo "$BUILT_TAGS")
