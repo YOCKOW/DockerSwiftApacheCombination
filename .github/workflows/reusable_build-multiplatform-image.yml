@@ -63,6 +63,11 @@ on:
       password:
         description: "Password to login Docker Registry"
         required: false
+    outputs:
+      results:
+        value: ${{ jobs.generate-results.outputs.results }}
+      resultsJSON:
+        value: ${{ jobs.generate-results.outputs.resultsJSON }}
 jobs:
   generate-image-name-info:
     name: Generate Image Name Info
@@ -341,3 +346,75 @@ jobs:
               "${full_image_tag}-arm64" --os linux --arch arm64
             docker manifest push "$full_image_tag"
           done < <(echo "$BUILT_TAGS")
+  generate-results:
+    name: Generate Results
+    needs:
+      - generate-image-name-info
+      - determine-whether-to-build
+      - merge-images
+    if: ${{ ! failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Results
+        id: generate-results
+        env:
+          FULL_IMAGE_NAME: ${{ needs.generate-image-name-info.outputs.full_image_name }}
+          ALL_TAGS: ${{ needs.generate-image-name-info.outputs.all_tags }}
+          SHOULD_BUILD: ${{ needs.determine-whether-to-build.outputs.should_build }}
+          BUILT_TAGS: ${{ needs.determine-whether-to-build.outputs.tags_to_build }}
+        shell: bash
+        run: |
+          set -eu
+
+          function __isBuilt() {
+            local -r tagName="${1:-}"
+            if [[ -z "$tagName" ]]; then
+              # Precondition Failure...
+              echo "::error:: Empty Tag?!"
+              exit 1
+            fi
+
+            if [[ "$SHOULD_BUILD" != "true" ]]; then
+              return 1
+            fi
+            while IFS= read -r aBuiltTag; do
+              if [[ "$tagName" == "$aBuiltTag" ]]; then
+                return 0
+              fi
+            done < <(echo "$BUILT_TAGS")
+            return 1
+          }
+
+          declare full_image_tag
+          declare -A results=()
+          while IFS= read -r aTag; do
+            full_image_tag="${FULL_IMAGE_NAME}:${aTag}"
+            if __isBuilt "$aTag"; then
+              results["$full_image_tag"]="true"
+            else
+              results["$full_image_tag"]="false"
+            fi
+          done < <(echo "$ALL_TAGS")
+
+          declare aResult
+          echo "results<<__RESULTS__" >>"$GITHUB_OUTPUT"
+          for full_image_tag in "${!results[@]}"; do
+            aResult=${results["$full_image_tag"]}
+            echo "${full_image_tag}=${aResult}" >>"$GITHUB_OUTPUT"
+          done
+          echo "__RESULTS__" >>"$GITHUB_OUTPUT"
+
+
+          declare resultsJSON="{"
+          declare -r NEWLINE=$'\n'
+          for full_image_tag in "${!results[@]}"; do
+            aResult=${results["$full_image_tag"]}
+            resultsJSON="${resultsJSON}${NEWLINE}  \"${full_image_tag}\": ${aResult},"
+          done
+          resultsJSON="${resultsJSON%%,}${NEWLINE}}"
+          echo "resultsJSON<<__RESULTS_JSON__" >>"$GITHUB_OUTPUT"
+          echo "$resultsJSON" >>"$GITHUB_OUTPUT"
+          echo "__RESULTS_JSON__" >>"$GITHUB_OUTPUT"
+    outputs:
+      results: ${{ steps.generate-results.outputs.results }}
+      resultsJSON: ${{ steps.generate-results.outputs.resultsJSON }}
