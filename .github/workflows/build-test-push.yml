@@ -60,28 +60,32 @@ jobs:
     steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
-        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+        - name: Generate Tags for Expat
+          uses: ./.github/workflows/composite_join-prefixes-suffixes
           id: expat-tags
           with:
             prefixes: Expat-
             suffixes: |
               ${{ needs.constants.outputs.EXPAT_VERSION }}
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+        - name: Generate Tags for Lua
+          uses: ./.github/workflows/composite_join-prefixes-suffixes
           id: lua-tags
           with:
             prefixes: Lua-
             suffixes: |
               ${{ needs.constants.outputs.LUA_VERSION }}
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+        - name: Generate Tags for PCRE2
+          uses: ./.github/workflows/composite_join-prefixes-suffixes
           id: pcre2-tags
           with:
             prefixes: PCRE2-
             suffixes: |
               ${{ needs.constants.outputs.PCRE2_VERSION }}
               ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-        - uses: ./.github/workflows/composite_join-prefixes-suffixes
+        - name: Generate Tags for zlib
+          uses: ./.github/workflows/composite_join-prefixes-suffixes
           id: zlib-tags
           with:
             prefixes: zlib-
