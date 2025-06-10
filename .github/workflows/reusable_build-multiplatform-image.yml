@@ -68,6 +68,8 @@ on:
         value: ${{ jobs.generate-results.outputs.results }}
       resultsJSON:
         value: ${{ jobs.generate-results.outputs.resultsJSON }}
+      preferred-image-tag:
+        value: ${{ jobs.generate-results.outputs.preferred-image-tag }}
 jobs:
   generate-image-name-info:
     name: Generate Image Name Info
@@ -415,6 +417,14 @@ jobs:
           echo "resultsJSON<<__RESULTS_JSON__" >>"$GITHUB_OUTPUT"
           echo "$resultsJSON" >>"$GITHUB_OUTPUT"
           echo "__RESULTS_JSON__" >>"$GITHUB_OUTPUT"
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Determine Preferred Image Tag
+        id: determine-preferred-image-tag
+        uses: ./.github/workflows/composite_pick-one-image
+        with:
+          build-results-json: ${{ steps.generate-results.outputs.resultsJSON }}
     outputs:
       results: ${{ steps.generate-results.outputs.results }}
       resultsJSON: ${{ steps.generate-results.outputs.resultsJSON }}
+      preferred-image-tag: ${{ steps.determine-preferred-image-tag.outputs.result }}
