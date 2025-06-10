@@ -10,7 +10,7 @@
 
 # Configurable arguments
 ARG ZLIB_VERSION="1.3.1"
-ARG PCRE2_INSTALL_PREFIX="/opt/zlib"
+ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 ARG LICENSES_DIR="/licenses"
 
 ################################################################################
@@ -38,6 +38,7 @@ RUN mkdir -p "${ZLIB_WORKSPACE}" "${ZLIB_SOURCE_DIR}" "${GNUPGHOME}" \
     && chmod 600 "${GNUPGHOME}"
 RUN wget -q -O- 'https://madler.net/madler/pgp.html' | gpg --import
 
+WORKDIR $ZLIB_WORKSPACE
 RUN wget -q -O "${ZLIB_BIN_LOCAL_BASENAME}" "${ZLIB_BIN_URL}" \
     && wget -q -O "${ZLIB_SIG_LOCAL_BASENAME}" "${ZLIB_SIG_URL}"
 RUN gpg --batch --verify "${ZLIB_SIG_LOCAL_BASENAME}" "${ZLIB_BIN_LOCAL_BASENAME}"
