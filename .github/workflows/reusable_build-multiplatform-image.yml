@@ -64,6 +64,8 @@ on:
         description: "Password to login Docker Registry"
         required: false
     outputs:
+      all-skipped:
+        value: ${{ jobs.generate-results.outputs.all-skipped }}
       results:
         value: ${{ jobs.generate-results.outputs.results }}
       resultsJSON:
@@ -479,6 +481,7 @@ jobs:
             // Return the result
             return allImageTags[0];
     outputs:
+      all-skipped: ${{ needs.determine-whether-to-build.outputs.should_build != 'true' }}
       results: ${{ steps.generate-results.outputs.results }}
       resultsJSON: ${{ steps.generate-results.outputs.resultsJSON }}
       preferred-image-tag: ${{ steps.summary-and-preferred-image-tag.outputs.result }}

@@ -39,6 +39,8 @@ RUN apt update \
         automake \
         build-essential \
         clang \
+        libtool \
+        pkg-config \
         wget
 RUN mkdir -p "$LIBXML2_WORKSPACE" "$LIBXML2_SOURCE_DIR"
 COPY --from=zlib-image $ZLIB_INSTALL_PREFIX $ZLIB_INSTALL_PREFIX

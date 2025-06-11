@@ -185,6 +185,7 @@ jobs:
       - build-zlib
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
+      if-absent: ${{ needs.build-zlib.outputs.all-skipped == 'true' }}
       dockerfile: ./images/deps/libxml2/Dockerfile
       build-args: |
         LIBXML2_VERSION=${{ needs.constants.outputs.LIBXML2_VERSION }}
