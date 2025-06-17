@@ -37,6 +37,9 @@ on:
       lua-hash:
         type: string
         required: true
+      nghttp2-version:
+        type: string
+        required: true
       openssl-version:
         type: string
         required: true
@@ -63,6 +66,7 @@ jobs:
             Expat:${{ inputs.expat-version }}
             libxml2:${{ inputs.libxml2-version }}
             Lua:${{ inputs.lua-version }}
+            nghttp2:${{ inputs.nghttp2-version }}
             OpenSSL:${{ inputs.openssl-version }}
             PCRE2:${{ inputs.pcre2-version }}
             zlib:${{ inputs.zlib-version }}
@@ -96,6 +100,7 @@ jobs:
       expat-tags: ${{ fromJson(steps.generate-tags.outputs.result).Expat_tags }}
       libxml2-tags: ${{ fromJson(steps.generate-tags.outputs.result).libxml2_tags }}
       lua-tags: ${{ fromJson(steps.generate-tags.outputs.result).Lua_tags }}
+      nghttp2-tags: ${{ fromJson(steps.generate-tags.outputs.result).nghttp2_tags }}
       openssl-tags: ${{ fromJson(steps.generate-tags.outputs.result).OpenSSL_tags }}
       pcre2-tags: ${{ fromJson(steps.generate-tags.outputs.result).PCRE2_tags }}
       zlib-tags: ${{ fromJson(steps.generate-tags.outputs.result).zlib_tags }}
@@ -153,6 +158,33 @@ jobs:
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.generate-tags.outputs.lua-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-nghttp2:
+    needs:
+      - generate-tags
+      - build-openssl
+      - build-zlib
+    name: Build nghttp2
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: |-
+        ${{
+            needs.build-openssl.outputs.all-skipped == 'true' &&
+            needs.build-zlib.outputs.all-skipped == 'true'
+        }}
+      dockerfile: ./images/deps/nghttp2/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        NGHTTP2_VERSION=${{ inputs.nghttp2-version }}
+        OPENSSL_IMAGE=${{ needs.build-openssl.outputs.preferred-image-tag }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.generate-tags.outputs.nghttp2-tags }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
