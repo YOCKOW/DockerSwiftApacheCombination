@@ -61,7 +61,8 @@ WORKDIR $OPENSSL_SOURCE_DIR
 RUN perl ./Configure \
         --prefix="$OPENSSL_INSTALL_PREFIX" \
         --with-zlib-include="${ZLIB_INSTALL_PREFIX}/include" \
-        shared zlib zlib-dynamic
+        shared zlib zlib-dynamic \
+        CC=clang CXX=clang++
 RUN make && make install
 RUN mkdir -p "${LICENSES_DIR}" && cp ./LICENSE.txt "${LICENSES_DIR}/OpenSSL.txt"
 
