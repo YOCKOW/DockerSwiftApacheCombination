@@ -71,7 +71,7 @@ jobs:
     strategy:
       matrix:
         include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
-    name: Build Dpendencies for ${{ matrix.os_label }}
+    name: Build Dependencies for ${{ matrix.os_label }}
     uses: ./.github/workflows/reusable_deploy-deps.yml
     with:
       docker-registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
