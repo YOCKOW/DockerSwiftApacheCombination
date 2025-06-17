@@ -46,7 +46,7 @@ RUN apt update \
         perl \
         wget
 RUN mkdir -p "${OPENSSL_WORKSPACE}" "${OPENSSL_SOURCE_DIR}" "${GNUPGHOME}" \
-    && chmod "${GNUPGHOME}"
+    && chmod 600 "${GNUPGHOME}"
 RUN wget -q -O- 'https://openssl-library.org/source/pubkeys.asc' | gpg --import
 
 COPY --from=zlib-image "${ZLIB_INSTALL_PREFIX}" "${ZLIB_INSTALL_PREFIX}"
