@@ -25,6 +25,15 @@ on:
         description: (e.g.) noble
         type: string
         required: true
+      apache-http-server-version:
+        type: string
+        required: true
+      apache-apr-version:
+        type: string
+        required: true
+      apache-apr-util-version:
+        type: string
+        required: true
       expat-version:
         type: string
         required: true
@@ -63,6 +72,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           VERSIONS: |
+            ApacheHTTPServer:${{ inputs.apache-http-server-version }}
             Expat:${{ inputs.expat-version }}
             libxml2:${{ inputs.libxml2-version }}
             Lua:${{ inputs.lua-version }}
@@ -97,6 +107,7 @@ jobs:
             }
             return result;
     outputs:
+      apache-http-server-tags: ${{ fromJson(steps.generate-tags.outputs.result).ApacheHTTPServer_tags }}
       expat-tags: ${{ fromJson(steps.generate-tags.outputs.result).Expat_tags }}
       libxml2-tags: ${{ fromJson(steps.generate-tags.outputs.result).libxml2_tags }}
       lua-tags: ${{ fromJson(steps.generate-tags.outputs.result).Lua_tags }}
@@ -104,6 +115,42 @@ jobs:
       openssl-tags: ${{ fromJson(steps.generate-tags.outputs.result).OpenSSL_tags }}
       pcre2-tags: ${{ fromJson(steps.generate-tags.outputs.result).PCRE2_tags }}
       zlib-tags: ${{ fromJson(steps.generate-tags.outputs.result).zlib_tags }}
+  build-apache-http-server:
+    needs:
+      - generate-tags
+      - build-expat
+      - build-libxml2
+      - build-lua
+      - build-nghttp2
+      - build-openssl
+      - build-pcre2
+      - build-zlib
+    name: Build Apache HTTP Server
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/ApacheHTTPServer/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        APACHE_HTTP_SERVER_VERSION=${{ inputs.apache-http-server-version }}
+        APACHE_APR_VERSION=${{ inputs.apache-apr-version }}
+        APACHE_APRUTIL_VERSION=${{ inputs.apache-apr-util-version }}
+        EXPAT_IMAGE=${{ needs.build-expat.outputs.preferred-image-tag }}
+        LIBXML2_IMAGE=${{ needs.build-libxml2.outputs.preferred-image-tag }}
+        LUA_IMAGE=${{ needs.build-lua.outputs.preferred-image-tag }}
+        NGHTTP2_IMAGE=${{ needs.build-nghttp2.outputs.preferred-image-tag }}
+        OPENSSL_IMAGE=${{ needs.build-openssl.outputs.preferred-image-tag }}
+        PCRE2_IMAGE=${{ needs.build-pcre2.outputs.preferred-image-tag }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.generate-tags.outputs.apache-http-server-tags }}
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" env LD_LIBRARY_PATH=/opt/Expat/lib /opt/ApacheHTTPServer/bin/apachectl -V
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
   build-expat:
     needs: 
       - generate-tags

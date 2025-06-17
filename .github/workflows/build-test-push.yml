@@ -47,6 +47,9 @@ jobs:
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIX: ${{ steps.define-constants.outputs.tag_name_suffix }}
+      APACHE_HTTP_SERVER_VERSION: "2.4.63"
+      APACHE_APR_VERSION: "1.7.6"
+      APACHE_APRUTIL_VERSION: "1.6.3"
       EXPAT_VERSION: "2.7.1"
       LIBXML2_VERSION: "2.14.3"
       LUA_VERSION: "5.4.8"
@@ -82,6 +85,9 @@ jobs:
       tag-name-suffixes: ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
       base-os-image: ${{ matrix.image_name }}
       base-os-label: ${{ matrix.os_label }}
+      apache-http-server-version: ${{ needs.constants.outputs.APACHE_HTTP_SERVER_VERSION }}
+      apache-apr-version: ${{ needs.constants.outputs.APACHE_APR_VERSION }}
+      apache-apr-util-version: ${{ needs.constants.outputs.APACHE_APRUTIL_VERSION }}
       expat-version: ${{ needs.constants.outputs.EXPAT_VERSION }}
       libxml2-version: ${{ needs.constants.outputs.LIBXML2_VERSION }}
       lua-version: ${{ needs.constants.outputs.LUA_VERSION }}
