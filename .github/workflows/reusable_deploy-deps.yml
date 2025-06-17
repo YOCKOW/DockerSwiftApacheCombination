@@ -1,0 +1,189 @@
+name: Deploy Necessary Images
+on:
+  workflow_call:
+    inputs:
+      docker-registry:
+        type: string
+        required: true
+      docker-username:
+        type: string
+        required: true
+      docker-deps-image-basename:
+        type: string
+        required: true
+      docker-image-basename:
+        type: string
+        required: true
+      tag-name-suffixes:
+        type: string
+        required: true
+      base-os-image:
+        description: (e.g.) ubuntu:noble
+        type: string
+        required: true
+      base-os-label:
+        description: (e.g.) noble
+        type: string
+        required: true
+      expat-version:
+        type: string
+        required: true
+      libxml2-version:
+        type: string
+        required: true
+      lua-version:
+        type: string
+        required: true
+      lua-hash:
+        type: string
+        required: true
+      pcre2-version:
+        type: string
+        required: true
+      zlib-version:
+        type: string
+        required: true
+    secrets:
+      password:
+        description: "Password to login Docker Registry"
+        required: false
+jobs:
+  generate-tags:
+    name: Generate Tags
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Tags
+        id: generate-tags
+        uses: actions/github-script@v7
+        env:
+          VERSIONS: |
+            Expat:${{ inputs.expat-version }}
+            libxml2:${{ inputs.libxml2-version }}
+            Lua:${{ inputs.lua-version }}
+            PCRE2:${{ inputs.pcre2-version }}
+            zlib:${{ inputs.zlib-version }}
+          SUFFIXES: ${{ inputs.tag-name-suffixes }}
+          BASE_OS_LABEL: ${{ inputs.base-os-label }}
+        with:
+          script: |
+            const versionLines = process.env.VERSIONS.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
+            const suffixes = process.env.SUFFIXES.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
+            const baseOSLabel= process.env.BASE_OS_LABEL.trim();
+
+            if (versionLines.length < 1 || baseOSLabel.length < 1) {
+              throw new Error("Unexpected arguments!?");
+            }
+
+            const result = {};
+            for (const versionLine of versionLines) {
+              const [softwareName, version] = versionLine.split(":")
+              const resultKey = `${softwareName}_tags`;
+              result[resultKey] = "";
+              if (suffixes.length < 1) {
+                result[resultKey] += `${softwareName}_${version}-${baseOSLabel}\n`;
+              } else {
+                for (const suffix of suffixes) {
+                  result[resultKey] += `${softwareName}_${version}-${baseOSLabel}-${suffix}\n`;
+                }
+              }
+            }
+            return result;
+    outputs:
+      expat-tags: ${{ fromJson(steps.generate-tags.outputs.result).Expat_tags }}
+      libxml2-tags: ${{ fromJson(steps.generate-tags.outputs.result).libxml2_tags }}
+      lua-tags: ${{ fromJson(steps.generate-tags.outputs.result).Lua_tags }}
+      pcre2-tags: ${{ fromJson(steps.generate-tags.outputs.result).PCRE2_tags }}
+      zlib-tags: ${{ fromJson(steps.generate-tags.outputs.result).zlib_tags }}
+  build-expat:
+    needs: 
+      - generate-tags
+    name: Build Expat (libexpat)
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/Expat/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        EXPAT_VERSION=${{ inputs.expat-version }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.generate-tags.outputs.expat-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-libxml2:
+    needs: 
+      - generate-tags
+      - build-zlib
+    name: Build libxml2
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/libxml2/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        LIBXML2_VERSION=${{ inputs.libxml2-version }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.generate-tags.outputs.libxml2-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-lua:
+    needs: 
+      - generate-tags
+    name: Build Lua
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/Lua/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        LUA_VERSION=${{ inputs.lua-version }}
+        LUA_HASH=${{ inputs.lua-hash }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.generate-tags.outputs.lua-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-pcre2:
+    needs: 
+      - generate-tags
+    name: Build PCRE2
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/PCRE2/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        PCRE2_VERSION=${{ inputs.pcre2-version }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.generate-tags.outputs.pcre2-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-zlib:
+    needs: 
+      - generate-tags
+    name: Build zlib
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      dockerfile: ./images/deps/zlib/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        ZLIB_VERSION=${{ inputs.zlib-version }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.generate-tags.outputs.zlib-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}

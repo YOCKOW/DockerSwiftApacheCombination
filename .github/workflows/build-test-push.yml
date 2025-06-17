@@ -53,148 +53,38 @@ jobs:
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
       PCRE2_VERSION: "10.45"
       ZLIB_VERSION: "1.3.1"
-  generate-tags:
-    name: Generate Tags for Each Image
+      BASE_OS_IMAGES: |
+        [
+          {
+            "image_name": "ubuntu:noble",
+            "os_label": "noble"
+          },
+          {
+            "image_name": "ubuntu:jammy",
+            "os_label": "jammy"
+          }
+        ]
+  build-deps:
     needs:
       - constants
-    runs-on: ubuntu-latest
-    steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v4
-        - name: Generate Tags for Expat
-          uses: ./.github/workflows/composite_join-prefixes-suffixes
-          id: expat-tags
-          with:
-            prefixes: Expat-
-            suffixes: |
-              ${{ needs.constants.outputs.EXPAT_VERSION }}
-              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-        - name: Generate Tags for libxml2
-          uses: ./.github/workflows/composite_join-prefixes-suffixes
-          id: libxml2-tags
-          with:
-            prefixes: libxml2-
-            suffixes: |
-              ${{ needs.constants.outputs.LIBXML2_VERSION }}
-              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-        - name: Generate Tags for Lua
-          uses: ./.github/workflows/composite_join-prefixes-suffixes
-          id: lua-tags
-          with:
-            prefixes: Lua-
-            suffixes: |
-              ${{ needs.constants.outputs.LUA_VERSION }}
-              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-        - name: Generate Tags for PCRE2
-          uses: ./.github/workflows/composite_join-prefixes-suffixes
-          id: pcre2-tags
-          with:
-            prefixes: PCRE2-
-            suffixes: |
-              ${{ needs.constants.outputs.PCRE2_VERSION }}
-              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-        - name: Generate Tags for zlib
-          uses: ./.github/workflows/composite_join-prefixes-suffixes
-          id: zlib-tags
-          with:
-            prefixes: zlib-
-            suffixes: |
-              ${{ needs.constants.outputs.ZLIB_VERSION }}
-              ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
-    outputs:
-      EXPAT_TAGS: ${{ steps.expat-tags.outputs.joined }}
-      LIBXML2_TAGS: ${{ steps.libxml2-tags.outputs.joined }}
-      LUA_TAGS: ${{ steps.lua-tags.outputs.joined }}
-      PCRE2_TAGS: ${{ steps.pcre2-tags.outputs.joined }}
-      ZLIB_TAGS: ${{ steps.zlib-tags.outputs.joined }}
-  build-expat:
-    name: Build Expat (libexpat)
-    needs:
-      - constants
-      - generate-tags
-    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
+    name: Build Dpendencies for ${{ matrix.os_label }}
+    uses: ./.github/workflows/reusable_deploy-deps.yml
     with:
-      dockerfile: ./images/deps/Expat/Dockerfile
-      build-args: EXPAT_VERSION=${{ needs.constants.outputs.EXPAT_VERSION }}
-      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
-      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
-      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      tags: ${{ needs.generate-tags.outputs.EXPAT_TAGS }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
-      push: true
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN }}
-  build-lua:
-    name: Build Lua
-    needs:
-      - constants
-      - generate-tags
-    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
-    with:
-      dockerfile: ./images/deps/Lua/Dockerfile
-      build-args: |
-        LUA_VERSION=${{ needs.constants.outputs.LUA_VERSION }}
-        LUA_HASH=${{ needs.constants.outputs.LUA_HASH }}
-      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
-      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
-      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      tags: ${{ needs.generate-tags.outputs.LUA_TAGS }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
-      push: true
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN }}
-  build-pcre2:
-    name: Build PCRE2
-    needs:
-      - constants
-      - generate-tags
-    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
-    with:
-      dockerfile: ./images/deps/PCRE2/Dockerfile
-      build-args: PCRE2_VERSION=${{ needs.constants.outputs.PCRE2_VERSION }}
-      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
-      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
-      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      tags: ${{ needs.generate-tags.outputs.PCRE2_TAGS }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
-      push: true
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN }}
-  build-zlib:
-    name: Build zlib
-    needs:
-      - constants
-      - generate-tags
-    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
-    with:
-      dockerfile: ./images/deps/zlib/Dockerfile
-      build-args: ZLIB_VERSION=${{ needs.constants.outputs.ZLIB_VERSION }}
-      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
-      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
-      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      tags: ${{ needs.generate-tags.outputs.ZLIB_TAGS }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
-      push: true
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN }}
-  build-libxml2:
-    name: Build libxml2
-    needs:
-      - constants
-      - generate-tags
-      - build-zlib
-    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
-    with:
-      if-absent: ${{ needs.build-zlib.outputs.all-skipped == 'true' }}
-      dockerfile: ./images/deps/libxml2/Dockerfile
-      build-args: |
-        LIBXML2_VERSION=${{ needs.constants.outputs.LIBXML2_VERSION }}
-        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
-      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
-      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
-      image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      tags: ${{ needs.generate-tags.outputs.LIBXML2_TAGS }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
-      push: true
+      docker-registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      docker-username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      docker-deps-image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
+      docker-image-basename: ${{ needs.constants.outputs.DOCKER_IMAGE_BASENAME }}
+      tag-name-suffixes: ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
+      base-os-image: ${{ matrix.image_name }}
+      base-os-label: ${{ matrix.os_label }}
+      expat-version: ${{ needs.constants.outputs.EXPAT_VERSION }}
+      libxml2-version: ${{ needs.constants.outputs.LIBXML2_VERSION }}
+      lua-version: ${{ needs.constants.outputs.LUA_VERSION }}
+      lua-hash: ${{ needs.constants.outputs.LUA_HASH }}
+      pcre2-version: ${{ needs.constants.outputs.PCRE2_VERSION }}
+      zlib-version: ${{ needs.constants.outputs.ZLIB_VERSION }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}

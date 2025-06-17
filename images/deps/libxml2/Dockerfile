@@ -9,18 +9,21 @@
 ################################################################################
 
 # Configurable arguments
+ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
+ARG BASE_OS_LABEL="noble"
 ARG LIBXML2_VERSION="2.14.3"
 ARG LIBXML2_INSTALL_PREFIX="/opt/libxml2"
 ARG LICENSES_DIR="/licenses"
 ARG ZLIB_VERSION="1.3.1"
-ARG ZLIB_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:zlib-${ZLIB_VERSION}"
+ARG ZLIB_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:zlib_${ZLIB_VERSION}-${BASE_OS_LABEL}"
 ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 
 ################################################################################
 FROM $ZLIB_IMAGE AS zlib-image
 
 ################################################################################
-FROM ubuntu:noble AS libxml2-builder
+FROM $BASE_OS_IMAGE AS libxml2-builder
 ARG LIBXML2_VERSION
 ARG LIBXML2_INSTALL_PREFIX
 ARG LICENSES_DIR
@@ -62,7 +65,7 @@ RUN make && make install
 RUN mkdir -p "$LICENSES_DIR" && cp ./Copyright "${LICENSES_DIR}/libxml2.txt"
 
 ################################################################################
-FROM ubuntu:noble
+FROM $BASE_OS_IMAGE
 ARG LIBXML2_INSTALL_PREFIX
 ARG ZLIB_INSTALL_PREFIX
 ARG LICENSES_DIR

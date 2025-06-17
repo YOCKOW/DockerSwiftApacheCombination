@@ -112,13 +112,23 @@ jobs:
           echo "image_namespace=$image_namespace" >>"$GITHUB_OUTPUT"
           echo "full_image_name=$full_image_name" >>"$GITHUB_OUTPUT"
 
+          declare tagExists="false"
           declare tagLine
           echo "all_tags<<__ALL_TAGS__" >>"$GITHUB_OUTPUT"
           while IFS= read -r tagLine; do
             # Trimming...
-            echo "$tagLine" | xargs >>"$GITHUB_OUTPUT"
+            declare trimmedTag=$(echo "$tagLine" | xargs)
+            if [[ -n "$trimmedTag" ]]; then
+              tagExists="true"
+              echo "$trimmedTag" >>"$GITHUB_OUTPUT"
+            fi
           done < <(echo "$D_TAGS" | sort -u | awk NF)
           echo "__ALL_TAGS__" >>"$GITHUB_OUTPUT"
+
+          if [[ "$tagExists" == "false" ]]; then
+            echo '::error::No valid tags are given.'
+            exit 1
+          fi
     outputs:
       image_namespace: ${{ steps.image-name-info.outputs.image_namespace }}
       full_image_name: ${{ steps.image-name-info.outputs.full_image_name }}

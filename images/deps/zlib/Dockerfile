@@ -9,12 +9,14 @@
 ################################################################################
 
 # Configurable arguments
+ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
 ARG ZLIB_VERSION="1.3.1"
 ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 ARG LICENSES_DIR="/licenses"
 
 ################################################################################
-FROM ubuntu:noble AS zlib-builder
+FROM $BASE_OS_IMAGE AS zlib-builder
 ARG ZLIB_VERSION
 ARG ZLIB_INSTALL_PREFIX
 ARG LICENSES_DIR
@@ -55,7 +57,7 @@ RUN ninja && ninja install
 RUN mkdir -p "$LICENSES_DIR" && cp ./LICENSE "${LICENSES_DIR}/zlib.txt"
 
 ################################################################################
-FROM ubuntu:noble
+FROM $BASE_OS_IMAGE
 ARG ZLIB_INSTALL_PREFIX
 ARG LICENSES_DIR
 COPY --from=zlib-builder $ZLIB_INSTALL_PREFIX $ZLIB_INSTALL_PREFIX

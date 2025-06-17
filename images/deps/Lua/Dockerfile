@@ -9,13 +9,15 @@
 ################################################################################
 
 # Configurable arguments
+ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
 ARG LUA_VERSION="5.4.8"
 ARG LUA_HASH="4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
 ARG LUA_INSTALL_PREFIX="/opt/Lua"
 ARG LICENSES_DIR="/licenses"
 
 ################################################################################
-FROM ubuntu:noble AS lua-builder
+FROM $BASE_OS_IMAGE AS lua-builder
 ARG LUA_VERSION
 ARG LUA_HASH
 ARG LUA_INSTALL_PREFIX
@@ -50,7 +52,7 @@ RUN mkdir -p "$LICENSES_DIR" \
     && "${LUA_WORKSPACE}/extract-lua-license" ./doc/readme.html >"${LICENSES_DIR}/Lua.html"
 
 ################################################################################
-FROM ubuntu:noble
+FROM $BASE_OS_IMAGE
 ARG LUA_INSTALL_PREFIX
 ARG LICENSES_DIR
 COPY --from=lua-builder $LUA_INSTALL_PREFIX $LUA_INSTALL_PREFIX

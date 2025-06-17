@@ -9,12 +9,14 @@
 ################################################################################
 
 # Configurable arguments
+ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
 ARG EXPAT_VERSION="2.7.1"
 ARG EXPAT_INSTALL_PREFIX="/opt/Expat"
 ARG LICENSES_DIR="/licenses"
 
 ################################################################################
-FROM ubuntu:noble AS expat-builder
+FROM $BASE_OS_IMAGE AS expat-builder
 ARG EXPAT_VERSION
 ARG EXPAT_INSTALL_PREFIX
 ARG LICENSES_DIR
@@ -54,7 +56,7 @@ RUN ninja && ninja install
 RUN mkdir -p "$LICENSES_DIR" && cp ./COPYING "${LICENSES_DIR}/Expat.txt"
 
 ################################################################################
-FROM ubuntu:noble
+FROM $BASE_OS_IMAGE
 ARG EXPAT_INSTALL_PREFIX
 ARG LICENSES_DIR
 COPY --from=expat-builder $EXPAT_INSTALL_PREFIX $EXPAT_INSTALL_PREFIX

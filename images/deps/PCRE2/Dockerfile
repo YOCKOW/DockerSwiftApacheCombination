@@ -9,12 +9,14 @@
 ################################################################################
 
 # Configurable arguments
+ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
 ARG PCRE2_VERSION="10.45"
 ARG PCRE2_INSTALL_PREFIX="/opt/PCRE2"
 ARG LICENSES_DIR="/licenses"
 
 ################################################################################
-FROM ubuntu:noble AS pcre2-builder
+FROM $BASE_OS_IMAGE AS pcre2-builder
 ARG PCRE2_VERSION
 ARG PCRE2_INSTALL_PREFIX
 ARG LICENSES_DIR
@@ -54,7 +56,7 @@ RUN make && make install
 RUN mkdir -p "$LICENSES_DIR" && cp ./LICENCE.md "${LICENSES_DIR}/PCRE2.md"
 
 ################################################################################
-FROM ubuntu:noble
+FROM $BASE_OS_IMAGE
 ARG PCRE2_INSTALL_PREFIX
 ARG LICENSES_DIR
 COPY --from=pcre2-builder $PCRE2_INSTALL_PREFIX $PCRE2_INSTALL_PREFIX
