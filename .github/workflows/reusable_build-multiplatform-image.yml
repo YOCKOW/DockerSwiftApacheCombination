@@ -474,7 +474,7 @@ jobs:
             await core.summary.addHeading(
               'Build Arguments', '2'
             ).addList(
-              process.env.BUILD_ARGS.split(/\n/)
+              process.env.BUILD_ARGS.split(/\n/).map(arg => arg.trim()).filter(arg => arg.length > 0)
             );
 
             await core.summary.addHeading(
