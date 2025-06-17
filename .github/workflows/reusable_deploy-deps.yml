@@ -124,6 +124,7 @@ jobs:
     name: Build libxml2
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
+      if-absent: ${{ needs.build-zlib.outputs.all-skipped == 'true' }}
       dockerfile: ./images/deps/libxml2/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
