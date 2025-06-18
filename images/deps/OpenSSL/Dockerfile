@@ -58,8 +58,10 @@ RUN gpg --batch --verify "${OPENSSL_SIG_LOCAL_BASENAME}" "${OPENSSL_BIN_LOCAL_BA
     && tar -xzf "${OPENSSL_BIN_LOCAL_BASENAME}" --directory "${OPENSSL_SOURCE_DIR}" --strip-components=1
 
 WORKDIR $OPENSSL_SOURCE_DIR
-RUN perl ./Configure \
+RUN LDFLAGS="-Wl,-rpath,${OPENSSL_INSTALL_PREFIX}/lib" \
+    perl ./Configure \
         --prefix="$OPENSSL_INSTALL_PREFIX" \
+        --libdir=lib \
         --with-zlib-include="${ZLIB_INSTALL_PREFIX}/include" \
         shared zlib zlib-dynamic \
         CC=clang CXX=clang++
