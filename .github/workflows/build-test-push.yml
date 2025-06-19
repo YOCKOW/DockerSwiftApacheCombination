@@ -6,9 +6,9 @@ on:
     tags:
       - "release-*"
       - "push-test-*"
-  pull_request:
-    branches:
-      - "**"
+    paths:
+      - "**/Dockerfile"
+      - ".github/workflows/**.yml"
 permissions:
   packages: write
   contents: read
@@ -25,28 +25,32 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          echo "::notice::Defining Constants..."
           case "$REF_TYPE" in
           branch)
             if [[ "$REF_NAME" == "main" ]]; then
-              echo "tag_name_suffix=latest" >>"$GITHUB_OUTPUT"
-              exit 0
+              {
+                echo "tag_name_suffixes<<__TAG_NAME_SUFFIXES__"
+                echo "latest"
+                echo release-$(date '+%Y%m%d-%H%M%S')
+                echo "__TAG_NAME_SUFFIXES__"
+              } >>"$GITHUB_OUTPUT"
             fi
           ;;
           tag)
             if [[ "$REF_NAME" == release-* ]] || [[ "$REF_NAME" == push-test-* ]]; then
-              echo "tag_name_suffix=$REF_NAME" >>"$GITHUB_OUTPUT"
-              exit 0
+              echo "tag_name_suffixes=$REF_NAME" >>"$GITHUB_OUTPUT"
             fi
           ;;
+          *)
+            echo "tag_name_suffixes=" >>"$GITHUB_OUTPUT"
+          ;;
           esac
-          echo "tag_name_suffix=" >>"$GITHUB_OUTPUT"
     outputs:
       DOCKER_REGISTRY: ghcr.io
       DOCKER_USERNAME: ${{ github.actor }}
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_IMAGE_BASENAME: swift-de-cgi
-      DOCKER_TAG_NAME_SUFFIX: ${{ steps.define-constants.outputs.tag_name_suffix }}
+      DOCKER_TAG_NAME_SUFFIXES: ${{ steps.define-constants.outputs.tag_name_suffixes }}
       APACHE_HTTP_SERVER_VERSION: "2.4.63"
       APACHE_APR_VERSION: "1.7.6"
       APACHE_APRUTIL_VERSION: "1.6.3"
@@ -82,7 +86,7 @@ jobs:
       docker-username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
       docker-deps-image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
       docker-image-basename: ${{ needs.constants.outputs.DOCKER_IMAGE_BASENAME }}
-      tag-name-suffixes: ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIX }}
+      tag-name-suffixes: ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIXES }}
       base-os-image: ${{ matrix.image_name }}
       base-os-label: ${{ matrix.os_label }}
       apache-http-server-version: ${{ needs.constants.outputs.APACHE_HTTP_SERVER_VERSION }}
