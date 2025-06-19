@@ -175,7 +175,10 @@ jobs:
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.generate-tags.outputs.expat-tags }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      test-command: |-
+        docker run --rm -t "$DOCKER_TEST_TAG" ldd /opt/Expat/bin/*
+        docker run --rm -t "$DOCKER_TEST_TAG" ldd /opt/Expat/lib/*
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
