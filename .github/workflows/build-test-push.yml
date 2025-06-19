@@ -45,6 +45,24 @@ jobs:
             echo "tag_name_suffixes=" >>"$GITHUB_OUTPUT"
           ;;
           esac
+      - name: Determine images to force push
+        id: determine-force-push
+        uses: actions/github-script@v7
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        with:
+          result-encoding: string
+          script: |
+            let forcePushImages = [];
+            const forcePushRegex = /^\[\s*force\-push\s*:(.+)\]$/;
+            const messageLines = process.env.COMMIT_MESSAGE.split(/\n/).map(line => line.trim());
+            for (const line of messageLines) {
+              const images = line.match(forcePushRegex);
+              if (images) {
+                forcePushImages = forcePushImages.concat(images[1].split(/,\s*/).map(i => i.trim()));
+              }
+            }
+            return forcePushImages.filter(i => i.length > 0).join("\n");
     outputs:
       DOCKER_REGISTRY: ghcr.io
       DOCKER_USERNAME: ${{ github.actor }}
@@ -62,6 +80,7 @@ jobs:
       OPENSSL_VERSION: "3.5.0"
       PCRE2_VERSION: "10.45"
       ZLIB_VERSION: "1.3.1"
+      FORCE_PUSH: ${{ steps.determine-force-push.outputs.result }}
       BASE_OS_IMAGES: |
         [
           {
@@ -100,5 +119,6 @@ jobs:
       openssl-version: ${{ needs.constants.outputs.OPENSSL_VERSION }}
       pcre2-version: ${{ needs.constants.outputs.PCRE2_VERSION }}
       zlib-version: ${{ needs.constants.outputs.ZLIB_VERSION }}
+      force-push: ${{ needs.constants.outputs.FORCE_PUSH }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}

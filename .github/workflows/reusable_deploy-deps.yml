@@ -58,13 +58,17 @@ on:
       zlib-version:
         type: string
         required: true
+      force-push:
+        description: Image Names(Nicknames) to force push (separated by newlines)
+        type: string
+        required: true
     secrets:
       password:
         description: "Password to login Docker Registry"
         required: false
 jobs:
-  generate-tags:
-    name: Generate Tags
+  prepare:
+    name: Prepare
     runs-on: ubuntu-latest
     steps:
       - name: Generate Tags
@@ -106,6 +110,34 @@ jobs:
               }
             }
             return result;
+      - name: Determine which images should be pushed forcibly
+        id: force-push
+        uses: actions/github-script@v7
+        env:
+          FORCE_PUSH: ${{ inputs.force-push }}
+        with:
+          script: |
+            const forcePushImages = {};
+            for (const line of process.env.FORCE_PUSH.split(/\n/)) {
+              if (/apache/i.test(line) || /httpd/i.test(line)) {
+                forcePushImages['ApacheHTTPServer'] = true;
+              } else if (/expat/i.test(line)) {
+                forcePushImages['Expat'] = true;
+              } else if (/libxml2/i.test(line)) {
+                forcePushImages['libxml2'] = true;
+              } else if (/lua/i.test(line)) {
+                forcePushImages['Lua'] = true;
+              } else if (/nghttp2/i.test(line)) {
+                forcePushImages['nghttp2'] = true;
+              } else if (/OpenSSL/i.test(line)) {
+                forcePushImages['OpenSSL'] = true;
+              } else if (/PCRE2/i.test(line)) {
+                forcePushImages['PCRE2'] = true;
+              } else if (/zlib/i.test(line)) {
+                forcePushImages['zlib'] = true;
+              }
+            }
+            return forcePushImages;
     outputs:
       apache-http-server-tags: ${{ fromJson(steps.generate-tags.outputs.result).ApacheHTTPServer_tags }}
       expat-tags: ${{ fromJson(steps.generate-tags.outputs.result).Expat_tags }}
@@ -115,9 +147,10 @@ jobs:
       openssl-tags: ${{ fromJson(steps.generate-tags.outputs.result).OpenSSL_tags }}
       pcre2-tags: ${{ fromJson(steps.generate-tags.outputs.result).PCRE2_tags }}
       zlib-tags: ${{ fromJson(steps.generate-tags.outputs.result).zlib_tags }}
+      force-push-images-json: ${{ steps.force-push.outputs.result }}
   build-apache-http-server:
     needs:
-      - generate-tags
+      - prepare
       - build-expat
       - build-libxml2
       - build-lua
@@ -130,6 +163,7 @@ jobs:
     with:
       if-absent: |-
         ${{
+          !fromJson(needs.prepare.outputs.force-push-images-json).ApacheHTTPServer &&
           needs.build-expat.outputs.all-skipped == 'true' &&
           needs.build-libxml2.outputs.all-skipped == 'true' &&
           needs.build-lua.outputs.all-skipped == 'true' &&
@@ -154,7 +188,7 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.apache-http-server-tags }}
+      tags: ${{ needs.prepare.outputs.apache-http-server-tags }}
       test-command: |
         docker run --rm -t "$DOCKER_TEST_TAG" env LD_LIBRARY_PATH=/opt/Expat/lib /opt/ApacheHTTPServer/bin/apachectl -V
         docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
@@ -163,10 +197,11 @@ jobs:
       password: ${{ secrets.password }}
   build-expat:
     needs: 
-      - generate-tags
+      - prepare
     name: Build Expat (libexpat)
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Expat }}
       dockerfile: ./images/deps/Expat/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -174,7 +209,7 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.expat-tags }}
+      tags: ${{ needs.prepare.outputs.expat-tags }}
       test-command: |-
         docker run --rm -t "$DOCKER_TEST_TAG" ldd /opt/Expat/bin/*
         docker run --rm -t "$DOCKER_TEST_TAG" ldd /opt/Expat/lib/*
@@ -184,12 +219,16 @@ jobs:
       password: ${{ secrets.password }}
   build-libxml2:
     needs: 
-      - generate-tags
+      - prepare
       - build-zlib
     name: Build libxml2
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: ${{ needs.build-zlib.outputs.all-skipped == 'true' }}
+      if-absent: |-
+        ${{
+          !fromJson(needs.prepare.outputs.force-push-images-json).libxml2 &&
+          needs.build-zlib.outputs.all-skipped == 'true'
+        }}
       dockerfile: ./images/deps/libxml2/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -198,17 +237,18 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.libxml2-tags }}
+      tags: ${{ needs.prepare.outputs.libxml2-tags }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
   build-lua:
     needs: 
-      - generate-tags
+      - prepare
     name: Build Lua
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Lua }}
       dockerfile: ./images/deps/Lua/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -217,14 +257,14 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.lua-tags }}
+      tags: ${{ needs.prepare.outputs.lua-tags }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
   build-nghttp2:
     needs:
-      - generate-tags
+      - prepare
       - build-openssl
       - build-zlib
     name: Build nghttp2
@@ -232,8 +272,9 @@ jobs:
     with:
       if-absent: |-
         ${{
-            needs.build-openssl.outputs.all-skipped == 'true' &&
-            needs.build-zlib.outputs.all-skipped == 'true'
+          !fromJson(needs.prepare.outputs.force-push-images-json).nghttp2 &&
+          needs.build-openssl.outputs.all-skipped == 'true' &&
+          needs.build-zlib.outputs.all-skipped == 'true'
         }}
       dockerfile: ./images/deps/nghttp2/Dockerfile
       build-args: |
@@ -244,19 +285,23 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.nghttp2-tags }}
+      tags: ${{ needs.prepare.outputs.nghttp2-tags }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
   build-openssl:
     needs:
-      - generate-tags
+      - prepare
       - build-zlib
     name: Build OpenSSL
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: ${{ needs.build-zlib.outputs.all-skipped == 'true' }}
+      if-absent: |-
+        ${{
+          !fromJson(needs.prepare.outputs.force-push-images-json).OpenSSL &&
+          needs.build-zlib.outputs.all-skipped == 'true'
+        }}
       dockerfile: ./images/deps/OpenSSL/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -265,17 +310,18 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.openssl-tags }}
+      tags: ${{ needs.prepare.outputs.openssl-tags }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
   build-pcre2:
     needs: 
-      - generate-tags
+      - prepare
     name: Build PCRE2
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).PCRE2 }}
       dockerfile: ./images/deps/PCRE2/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -283,17 +329,18 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.pcre2-tags }}
+      tags: ${{ needs.prepare.outputs.pcre2-tags }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
   build-zlib:
     needs: 
-      - generate-tags
+      - prepare
     name: Build zlib
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).zlib }}
       dockerfile: ./images/deps/zlib/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -301,7 +348,7 @@ jobs:
       registry: ${{ inputs.docker-registry }}
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
-      tags: ${{ needs.generate-tags.outputs.zlib-tags }}
+      tags: ${{ needs.prepare.outputs.zlib-tags }}
       test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
