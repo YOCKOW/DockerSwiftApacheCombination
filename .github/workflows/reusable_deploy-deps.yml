@@ -314,7 +314,10 @@ jobs:
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.prepare.outputs.openssl-tags }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/bin/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
