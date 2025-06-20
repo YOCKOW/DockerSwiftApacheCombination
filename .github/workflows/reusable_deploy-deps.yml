@@ -289,7 +289,9 @@ jobs:
       username: ${{ inputs.docker-username }}
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.prepare.outputs.nghttp2-tags }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/nghttp2/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
       password: ${{ secrets.password }}
