@@ -190,7 +190,10 @@ jobs:
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.prepare.outputs.apache-http-server-tags }}
       test-command: |
-        docker run --rm -t "$DOCKER_TEST_TAG" env LD_LIBRARY_PATH=/opt/Expat/lib /opt/ApacheHTTPServer/bin/apachectl -V
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/ApacheHTTPServer/bin/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/ApacheHTTPServer/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/ApacheHTTPServer/modules/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" /opt/ApacheHTTPServer/bin/apachectl -V
         docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
