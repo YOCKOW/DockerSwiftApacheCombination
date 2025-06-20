@@ -53,11 +53,15 @@ RUN wget -q -O "$LIBXML2_BIN_LOCAL_BASENAME" "$LIBXML2_BIN_URL"
 RUN tar -xzf "${LIBXML2_BIN_LOCAL_BASENAME}" --directory "${LIBXML2_SOURCE_DIR}" --strip-components=1
 
 WORKDIR $LIBXML2_SOURCE_DIR
+ENV LDFLAGS="-Wl,-rpath,${LIBXML2_INSTALL_PREFIX}/lib,-rpath,${ZLIB_INSTALL_PREFIX}/lib" \
+    CC=clang \
+    CXX=clang++ \
+    CFLAGS=-O2
 RUN ./autogen.sh \
         --prefix="$LIBXML2_INSTALL_PREFIX" \
         --without-python \
         --with-zlib="$ZLIB_INSTALL_PREFIX" \
-    && CC=clang CXX=clang++ CFLAGS=-O2 ./configure \
+    && ./configure \
         --prefix="$LIBXML2_INSTALL_PREFIX" \
         --without-python \
         --with-zlib="$ZLIB_INSTALL_PREFIX"
