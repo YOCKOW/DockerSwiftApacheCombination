@@ -389,8 +389,8 @@ jobs:
 
           declare -r apacheHTTPServerImageFilename="apache-http-server-image-${BASE_OS_LABEL}"
           declare -r skippedFilename="skipped-${BASE_OS_LABEL}"
-          echo "$APACHE_HTTP_SERVER_IMAGE" >"$apacheHTTPServerImageFilename"
-          echo "${SKIPPED}" >"$skippedFilename"
+          printf '%s' "$APACHE_HTTP_SERVER_IMAGE" >"$apacheHTTPServerImageFilename"
+          printf '%s' "${SKIPPED}" >"$skippedFilename"
 
           {
             echo "generated-files<<__GENERATED_FILES__"

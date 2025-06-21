@@ -126,16 +126,128 @@ jobs:
       force-push: ${{ needs.constants.outputs.FORCE_PUSH }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
-  generate-prod-conditions:
+  generate-swift-image-build-conditions:
+    name: Generate Swift image build conditions
     needs:
+      - constants
       - build-deps
     runs-on: ubuntu-latest
+    env:
+      ARTIFACTS_DIR: artifacts
+      BASE_OS_IMAGES_JSON: ${{ needs.constants.outputs.BASE_OS_IMAGES }}
     steps:
       - name: Download Results
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-      - name: Show Results
-        run: |
-          ls -lah artifacts/DepsResults*
-          tail -n +1 artifacts/DepsResults*/*
+          path: ${{ env.ARTIFACTS_DIR }}
+      - name: Arrange Deps Results
+        id: arrange-deps-results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = JSON.parse(process.env.BASE_OS_IMAGES_JSON).map(item => item.os_label);
+            if (labels.length < 1) {
+              throw new Error("No labels?!");
+            }
+
+            let results = {
+              "apache_http_server_image": {},
+              "skipped": {}
+            };
+
+            const fs = require('fs');
+            const artifactsDir = process.env.ARTIFACTS_DIR;
+            for (const label of labels) {
+              const apacheHTTPServerImageFilename = `${artifactsDir}/DepsResults-${label}/apache-http-server-image-${label}`;
+              results.apache_http_server_image[label] = fs.readFileSync(apacheHTTPServerImageFilename);
+
+              const skippedFilename = `${artifactsDir}/DepsResults-${label}/skipped-${label}`;
+              const skipped = fs.readFileSync(skippedFilename);
+              results.skipped[label] = (skipped == 'true') ? true : false;
+            }
+
+            return results;
+      - name: Determine whether the image should be pushed forcibly
+        id: force-push
+        uses: actions/github-script@v7
+        env:
+          FORCE_PUSH: ${{ needs.constants.outputs.FORCE_PUSH }}
+        with:
+          result-encoding: string
+          script: |
+            if (process.env.FORCE_PUSH.split(/\n/).some(line => /swift/i.test(line))) {
+              return "true";
+            }
+            return "false";
+      - name: Generate Tags
+        id: generate-tags
+        uses: actions/github-script@v7
+        env:
+          SWIFT_VERSIONS_JSON: ${{ needs.constants.outputs.SWIFT_VERSIONS }}
+          TAG_SUFFIXES: ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIXES }}
+          APACHE_HTTP_SERVER_VERSION: ${{ needs.constants.outputs.APACHE_HTTP_SERVER_VERSION }}
+        with:
+          script: |
+            const tags = {}
+
+            const swiftVersions = JSON.parse(process.env.SWIFT_VERSIONS_JSON);
+            const labels = JSON.parse(process.env.BASE_OS_IMAGES_JSON).map(item => item.os_label);
+            const tagSuffixes = process.env.TAG_SUFFIXES.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
+            const apacheVersion = process.env.APACHE_HTTP_SERVER_VERSION;
+
+            for (const swiftVersion of swiftVersions) {
+              if (!tags.hasOwnProperty(swiftVersion)) {
+                tags[swiftVersion] = {};
+              }
+              for (const label of labels) {
+                if (!tags[swiftVersion].hasOwnProperty(label)) {
+                  tags[swiftVersion][label] = '';
+                }
+                if (tagSuffixes.length < 1) {
+                  tags[swiftVersion][label] += `Swift_${swiftVersion}-${label}\n`;
+                  tags[swiftVersion][label] += `Swift_${swiftVersion}-ApacheHTTPServer_${apacheVersion}-${label}\n`;
+                } else {
+                  for (const suffix of tagSuffixes) {
+                    tags[swiftVersion][label] += `Swift_${swiftVersion}-${label}-${suffix}\n`;
+                    tags[swiftVersion][label] += `Swift_${swiftVersion}-ApacheHTTPServer_${apacheVersion}-${label}-${suffix}\n`;
+                  }
+                }
+              }
+            }
+
+            return tags;
+    outputs:
+      arranged-deps-results-json: ${{ steps.arrange-deps-results.outputs.result }}
+      force-push: ${{ steps.force-push.outputs.result }}
+      tags-json: ${{ steps.generate-tags.outputs.result }}
+  build-prod:
+    needs:
+      - constants
+      - generate-swift-image-build-conditions
+    strategy:
+      fail-fast: false
+      matrix:
+        swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
+        include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
+    name: Build Swift ${{ matrix.swift-version }} image for ${{ matrix.os_label }}
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: >-
+        ${{
+          needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
+          fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label] == 'true'
+        }}
+      dockerfile: ./images/prod/Swift/Dockerfile
+      build-args: |
+        SWIFT_VERSION=${{ matrix.swift-version }}
+        BASE_OS_LABEL=${{ matrix.os_label }}
+        APACHE_HTTP_SERVER_IMAGE=${{ fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).apache_http_server_image[matrix.os_label] }}
+      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      image-basename: ${{ needs.constants.outputs.DOCKER_PROD_IMAGE_BASENAME }}
+      tags: ${{ fromJson(needs.generate-swift-image-build-conditions.outputs.tags-json)[matrix.swift-version][matrix.os_label] }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
+
