@@ -159,10 +159,10 @@ jobs:
             const artifactsDir = process.env.ARTIFACTS_DIR;
             for (const label of labels) {
               const apacheHTTPServerImageFilename = `${artifactsDir}/DepsResults-${label}/apache-http-server-image-${label}`;
-              results.apache_http_server_image[label] = fs.readFileSync(apacheHTTPServerImageFilename);
+              results.apache_http_server_image[label] = fs.readFileSync(apacheHTTPServerImageFilename, 'utf8').toString();
 
               const skippedFilename = `${artifactsDir}/DepsResults-${label}/skipped-${label}`;
-              const skipped = fs.readFileSync(skippedFilename);
+              const skipped = fs.readFileSync(skippedFilename, 'utf8').toString();
               results.skipped[label] = (skipped == 'true') ? true : false;
             }
 
