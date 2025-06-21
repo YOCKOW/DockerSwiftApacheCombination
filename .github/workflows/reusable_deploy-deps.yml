@@ -1,0 +1,406 @@
+name: Deploy Dependencies
+on:
+  workflow_call:
+    inputs:
+      docker-registry:
+        type: string
+        required: true
+      docker-username:
+        type: string
+        required: true
+      docker-deps-image-basename:
+        type: string
+        required: true
+      tag-name-suffixes:
+        type: string
+        required: true
+      base-os-image:
+        description: (e.g.) ubuntu:noble
+        type: string
+        required: true
+      base-os-label:
+        description: (e.g.) noble
+        type: string
+        required: true
+      apache-http-server-version:
+        type: string
+        required: true
+      apache-apr-version:
+        type: string
+        required: true
+      apache-apr-util-version:
+        type: string
+        required: true
+      expat-version:
+        type: string
+        required: true
+      libxml2-version:
+        type: string
+        required: true
+      lua-version:
+        type: string
+        required: true
+      lua-hash:
+        type: string
+        required: true
+      nghttp2-version:
+        type: string
+        required: true
+      openssl-version:
+        type: string
+        required: true
+      pcre2-version:
+        type: string
+        required: true
+      zlib-version:
+        type: string
+        required: true
+      force-push:
+        description: Image Names(Nicknames) to force push (separated by newlines)
+        type: string
+        required: true
+    secrets:
+      password:
+        description: "Password to login Docker Registry"
+        required: false
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Tags
+        id: generate-tags
+        uses: actions/github-script@v7
+        env:
+          VERSIONS: |
+            ApacheHTTPServer:${{ inputs.apache-http-server-version }}
+            Expat:${{ inputs.expat-version }}
+            libxml2:${{ inputs.libxml2-version }}
+            Lua:${{ inputs.lua-version }}
+            nghttp2:${{ inputs.nghttp2-version }}
+            OpenSSL:${{ inputs.openssl-version }}
+            PCRE2:${{ inputs.pcre2-version }}
+            zlib:${{ inputs.zlib-version }}
+          SUFFIXES: ${{ inputs.tag-name-suffixes }}
+          BASE_OS_LABEL: ${{ inputs.base-os-label }}
+        with:
+          script: |
+            const versionLines = process.env.VERSIONS.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
+            const suffixes = process.env.SUFFIXES.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
+            const baseOSLabel= process.env.BASE_OS_LABEL.trim();
+
+            if (versionLines.length < 1 || baseOSLabel.length < 1) {
+              throw new Error("Unexpected arguments!?");
+            }
+
+            const result = {};
+            for (const versionLine of versionLines) {
+              const [softwareName, version] = versionLine.split(":")
+              const resultKey = `${softwareName}_tags`;
+              result[resultKey] = "";
+              if (suffixes.length < 1) {
+                result[resultKey] += `${softwareName}_${version}-${baseOSLabel}\n`;
+              } else {
+                for (const suffix of suffixes) {
+                  result[resultKey] += `${softwareName}_${version}-${baseOSLabel}-${suffix}\n`;
+                }
+              }
+            }
+            return result;
+      - name: Determine which images should be pushed forcibly
+        id: force-push
+        uses: actions/github-script@v7
+        env:
+          FORCE_PUSH: ${{ inputs.force-push }}
+        with:
+          script: |
+            const forcePushImages = {};
+            for (const line of process.env.FORCE_PUSH.split(/\n/)) {
+              if (/apache/i.test(line) || /httpd/i.test(line)) {
+                forcePushImages['ApacheHTTPServer'] = true;
+              } else if (/expat/i.test(line)) {
+                forcePushImages['Expat'] = true;
+              } else if (/libxml2/i.test(line)) {
+                forcePushImages['libxml2'] = true;
+              } else if (/lua/i.test(line)) {
+                forcePushImages['Lua'] = true;
+              } else if (/nghttp2/i.test(line)) {
+                forcePushImages['nghttp2'] = true;
+              } else if (/OpenSSL/i.test(line)) {
+                forcePushImages['OpenSSL'] = true;
+              } else if (/PCRE2/i.test(line)) {
+                forcePushImages['PCRE2'] = true;
+              } else if (/zlib/i.test(line)) {
+                forcePushImages['zlib'] = true;
+              }
+            }
+            return forcePushImages;
+    outputs:
+      apache-http-server-tags: ${{ fromJson(steps.generate-tags.outputs.result).ApacheHTTPServer_tags }}
+      expat-tags: ${{ fromJson(steps.generate-tags.outputs.result).Expat_tags }}
+      libxml2-tags: ${{ fromJson(steps.generate-tags.outputs.result).libxml2_tags }}
+      lua-tags: ${{ fromJson(steps.generate-tags.outputs.result).Lua_tags }}
+      nghttp2-tags: ${{ fromJson(steps.generate-tags.outputs.result).nghttp2_tags }}
+      openssl-tags: ${{ fromJson(steps.generate-tags.outputs.result).OpenSSL_tags }}
+      pcre2-tags: ${{ fromJson(steps.generate-tags.outputs.result).PCRE2_tags }}
+      zlib-tags: ${{ fromJson(steps.generate-tags.outputs.result).zlib_tags }}
+      force-push-images-json: ${{ steps.force-push.outputs.result }}
+  build-apache-http-server:
+    needs:
+      - prepare
+      - build-expat
+      - build-libxml2
+      - build-lua
+      - build-nghttp2
+      - build-openssl
+      - build-pcre2
+      - build-zlib
+    name: Build Apache HTTP Server
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: |-
+        ${{
+          !fromJson(needs.prepare.outputs.force-push-images-json).ApacheHTTPServer &&
+          needs.build-expat.outputs.all-skipped == 'true' &&
+          needs.build-libxml2.outputs.all-skipped == 'true' &&
+          needs.build-lua.outputs.all-skipped == 'true' &&
+          needs.build-nghttp2.outputs.all-skipped == 'true' &&
+          needs.build-openssl.outputs.all-skipped == 'true' &&
+          needs.build-pcre2.outputs.all-skipped == 'true' &&
+          needs.build-zlib.outputs.all-skipped == 'true'
+        }}
+      dockerfile: ./images/deps/ApacheHTTPServer/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        APACHE_HTTP_SERVER_VERSION=${{ inputs.apache-http-server-version }}
+        APACHE_APR_VERSION=${{ inputs.apache-apr-version }}
+        APACHE_APRUTIL_VERSION=${{ inputs.apache-apr-util-version }}
+        EXPAT_IMAGE=${{ needs.build-expat.outputs.preferred-image-tag }}
+        LIBXML2_IMAGE=${{ needs.build-libxml2.outputs.preferred-image-tag }}
+        LUA_IMAGE=${{ needs.build-lua.outputs.preferred-image-tag }}
+        NGHTTP2_IMAGE=${{ needs.build-nghttp2.outputs.preferred-image-tag }}
+        OPENSSL_IMAGE=${{ needs.build-openssl.outputs.preferred-image-tag }}
+        PCRE2_IMAGE=${{ needs.build-pcre2.outputs.preferred-image-tag }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.apache-http-server-tags }}
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/ApacheHTTPServer/bin/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/ApacheHTTPServer/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/ApacheHTTPServer/modules/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" /opt/ApacheHTTPServer/bin/apachectl -V
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-expat:
+    needs: 
+      - prepare
+    name: Build Expat (libexpat)
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Expat }}
+      dockerfile: ./images/deps/Expat/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        EXPAT_VERSION=${{ inputs.expat-version }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.expat-tags }}
+      test-command: |-
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/Expat/bin/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/Expat/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-libxml2:
+    needs: 
+      - prepare
+      - build-zlib
+    name: Build libxml2
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: |-
+        ${{
+          !fromJson(needs.prepare.outputs.force-push-images-json).libxml2 &&
+          needs.build-zlib.outputs.all-skipped == 'true'
+        }}
+      dockerfile: ./images/deps/libxml2/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        LIBXML2_VERSION=${{ inputs.libxml2-version }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.libxml2-tags }}
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/libxml2/bin/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/libxml2/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-lua:
+    needs: 
+      - prepare
+    name: Build Lua
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Lua }}
+      dockerfile: ./images/deps/Lua/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        LUA_VERSION=${{ inputs.lua-version }}
+        LUA_HASH=${{ inputs.lua-hash }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.lua-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-nghttp2:
+    needs:
+      - prepare
+      - build-openssl
+      - build-zlib
+    name: Build nghttp2
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: |-
+        ${{
+          !fromJson(needs.prepare.outputs.force-push-images-json).nghttp2 &&
+          needs.build-openssl.outputs.all-skipped == 'true' &&
+          needs.build-zlib.outputs.all-skipped == 'true'
+        }}
+      dockerfile: ./images/deps/nghttp2/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        NGHTTP2_VERSION=${{ inputs.nghttp2-version }}
+        OPENSSL_IMAGE=${{ needs.build-openssl.outputs.preferred-image-tag }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.nghttp2-tags }}
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/nghttp2/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-openssl:
+    needs:
+      - prepare
+      - build-zlib
+    name: Build OpenSSL
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: |-
+        ${{
+          !fromJson(needs.prepare.outputs.force-push-images-json).OpenSSL &&
+          needs.build-zlib.outputs.all-skipped == 'true'
+        }}
+      dockerfile: ./images/deps/OpenSSL/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        OPENSSL_VERSION=${{ inputs.openssl-version }}
+        ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.openssl-tags }}
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/bin/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/lib/*'
+        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-pcre2:
+    needs: 
+      - prepare
+    name: Build PCRE2
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).PCRE2 }}
+      dockerfile: ./images/deps/PCRE2/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        PCRE2_VERSION=${{ inputs.pcre2-version }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.pcre2-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  build-zlib:
+    needs: 
+      - prepare
+    name: Build zlib
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).zlib }}
+      dockerfile: ./images/deps/zlib/Dockerfile
+      build-args: |
+        BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        ZLIB_VERSION=${{ inputs.zlib-version }}
+      registry: ${{ inputs.docker-registry }}
+      username: ${{ inputs.docker-username }}
+      image-basename: ${{ inputs.docker-deps-image-basename }}
+      tags: ${{ needs.prepare.outputs.zlib-tags }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.password }}
+  upload-results:
+    name: Upload Results
+    needs:
+      - build-apache-http-server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Save Results to Files
+        id: save-results
+        env:
+          APACHE_HTTP_SERVER_IMAGE: ${{ needs.build-apache-http-server.outputs.preferred-image-tag }}
+          BASE_OS_LABEL: ${{ inputs.base-os-label }}
+          SKIPPED: ${{ needs.build-apache-http-server.outputs.all-skipped }}
+        shell: bash
+        run: |
+          set -eu
+
+          if [[ -z "$APACHE_HTTP_SERVER_IMAGE" ]]; then
+            echo '::error::Invalid Apache HTTP Server Image Tag.'
+            exit 1
+          fi
+
+          if [[ -z "$BASE_OS_LABEL" ]]; then
+            echo '::error::Invalid Base OS Label.'
+            exit 1
+          fi
+
+          declare -r apacheHTTPServerImageFilename="apache-http-server-image-${BASE_OS_LABEL}"
+          declare -r skippedFilename="skipped-${BASE_OS_LABEL}"
+          printf '%s' "$APACHE_HTTP_SERVER_IMAGE" >"$apacheHTTPServerImageFilename"
+          printf '%s' "${SKIPPED}" >"$skippedFilename"
+
+          {
+            echo "generated-files<<__GENERATED_FILES__"
+            echo "$apacheHTTPServerImageFilename"
+            echo "$skippedFilename"
+            echo "__GENERATED_FILES__"
+          } >>"$GITHUB_OUTPUT"
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: DepsResults-${{ inputs.base-os-label }}
+          path: ${{ steps.save-results.outputs.generated-files }}
+          if-no-files-found: error
