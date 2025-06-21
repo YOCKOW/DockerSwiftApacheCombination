@@ -67,7 +67,7 @@ jobs:
       DOCKER_REGISTRY: ghcr.io
       DOCKER_USERNAME: ${{ github.actor }}
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
-      DOCKER_IMAGE_BASENAME: swift-de-cgi
+      DOCKER_PROD_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIXES: ${{ steps.define-constants.outputs.tag_name_suffixes }}
       APACHE_HTTP_SERVER_VERSION: "2.4.63"
       APACHE_APR_VERSION: "1.7.6"
@@ -92,6 +92,11 @@ jobs:
             "os_label": "jammy"
           }
         ]
+      SWIFT_VERSIONS: |
+        [
+          "6.1.2",
+          "6.0.3"
+        ]
   build-deps:
     needs:
       - constants
@@ -104,7 +109,6 @@ jobs:
       docker-registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
       docker-username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
       docker-deps-image-basename: ${{ needs.constants.outputs.DOCKER_DEPS_IMAGE_BASENAME }}
-      docker-image-basename: ${{ needs.constants.outputs.DOCKER_IMAGE_BASENAME }}
       tag-name-suffixes: ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIXES }}
       base-os-image: ${{ matrix.image_name }}
       base-os-label: ${{ matrix.os_label }}
@@ -122,3 +126,22 @@ jobs:
       force-push: ${{ needs.constants.outputs.FORCE_PUSH }}
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}
+  generate-prod-conditions:
+    needs:
+      - build-deps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Deps
+        id: should-build
+        env:
+          APACHE_HTTP_SERVER_IMAGE_NOBLE: ${{ needs.build-deps.outputs.apache-http-server-image-noble }}
+          APACHE_HTTP_SERVER_IMAGE_JAMMY: ${{ needs.build-deps.outputs.apache-http-server-image-jammy }}
+          SKIPPED_NOBLE: ${{ needs.build-deps.outputs.skipped-noble }}
+          SKIPPED_JAMMY: ${{ needs.build-deps.outputs.skipped-jammy }}
+        shell: bash
+        run: |
+          echo "::notice::Image(noble): $APACHE_HTTP_SERVER_IMAGE_NOBLE"
+          echo "::notice::Image(jammy): $APACHE_HTTP_SERVER_IMAGE_JAMMY"
+          echo "::notice::Skipped(noble): $SKIPPED_NOBLE"
+          echo "::notice::Skipped(jammy): $SKIPPED_JAMMY"
+  

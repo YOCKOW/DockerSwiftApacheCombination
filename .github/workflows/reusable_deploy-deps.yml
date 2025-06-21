@@ -1,4 +1,4 @@
-name: Deploy Necessary Images
+name: Deploy Dependencies
 on:
   workflow_call:
     inputs:
@@ -9,9 +9,6 @@ on:
         type: string
         required: true
       docker-deps-image-basename:
-        type: string
-        required: true
-      docker-image-basename:
         type: string
         required: true
       tag-name-suffixes:
@@ -66,6 +63,15 @@ on:
       password:
         description: "Password to login Docker Registry"
         required: false
+    outputs:
+      apache-http-server-image-noble:
+        value: ${{ jobs.generate-outputs.outputs.apache-http-server-image-noble }}
+      apache-http-server-image-jammy:
+        value: ${{ jobs.generate-outputs.outputs.apache-http-server-image-jammy }}
+      skipped-noble:
+        value: ${{ jobs.generate-outputs.outputs.skipped-noble }}
+      skipped-jammy:
+        value: ${{ jobs.generate-outputs.outputs.skipped-jammy }}
 jobs:
   prepare:
     name: Prepare
@@ -364,3 +370,36 @@ jobs:
       push: true
     secrets:
       password: ${{ secrets.password }}
+  generate-outputs:
+    needs:
+      - build-apache-http-server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Outputs
+        id: generate-outputs
+        env:
+          APACHE_HTTP_SERVER_IMAGE: ${{ needs.build-apache-http-server.outputs.preferred-image-tag }}
+          BASE_OS_LABEL: ${{ inputs.base-os-label }}
+          SKIPPED: ${{ needs.build-apache-http-server.outputs.all-skipped }}
+        shell: bash
+        run: |
+          set -eu
+
+          if [[ -z "$APACHE_HTTP_SERVER_IMAGE" ]]; then
+            echo '::error::Invalid Apache HTTP Server Image Tag.'
+            exit 1
+          fi
+
+          if [[ -z "$BASE_OS_LABEL" ]]; then
+            echo '::error::Invalid Base OS Label.'
+            exit 1
+          fi
+
+          echo "apache-http-server-image-${BASE_OS_LABEL}=${APACHE_HTTP_SERVER_IMAGE}" >>"$GITHUB_OUTPUT"
+          echo "skipped-${BASE_OS_LABEL}=${SKIPPED}" >>"$GITHUB_OUTPUT"
+    outputs:
+      apache-http-server-image-noble: ${{ steps.generate-outputs.outputs.apache-http-server-image-noble }}
+      apache-http-server-image-jammy: ${{ steps.generate-outputs.outputs.apache-http-server-image-jammy }}
+      skipped-noble: ${{ steps.generate-outputs.outputs.skipped-noble }}
+      skipped-jammy: ${{ steps.generate-outputs.outputs.skipped-jammy }}
+        
