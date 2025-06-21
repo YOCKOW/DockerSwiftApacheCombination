@@ -73,8 +73,8 @@ on:
       preferred-image-tag:
         value: ${{ jobs.generate-results.outputs.preferred-image-tag }}
 jobs:
-  generate-image-name-info:
-    name: Generate Image Name Info
+  prepare:
+    name: Prepare for building images.
     runs-on: ubuntu-latest
     steps:
       - name: Generate Image Name Info
@@ -129,19 +129,9 @@ jobs:
             echo '::error::No valid tags are given.'
             exit 1
           fi
-    outputs:
-      image_namespace: ${{ steps.image-name-info.outputs.image_namespace }}
-      full_image_name: ${{ steps.image-name-info.outputs.full_image_name }}
-      all_tags: ${{ steps.image-name-info.outputs.all_tags }}
-  determine-whether-to-build:
-    name: Determine whether or not an image should be built
-    needs:
-      - generate-image-name-info
-    runs-on: ubuntu-latest
-    env:
-      password: ${{ secrets.password }}
-    steps:
       - name: Log in to the Container registry
+        env:
+          password: ${{ secrets.password }}
         if: ${{ inputs.username != '' && env.password != '' }}
         uses: docker/login-action@v3
         with:
@@ -152,8 +142,8 @@ jobs:
         id: should-build
         env:
           IF_ABSENT: ${{ (inputs.if-absent && 'true') || 'false' }}
-          FULL_IMAGE_NAME: ${{ needs.generate-image-name-info.outputs.full_image_name }}
-          ALL_TAGS: ${{ needs.generate-image-name-info.outputs.all_tags }}
+          FULL_IMAGE_NAME: ${{ steps.image-name-info.outputs.full_image_name }}
+          ALL_TAGS: ${{ steps.image-name-info.outputs.all_tags }}
         shell: bash
         run: |
           declare should_build="false"
@@ -183,14 +173,16 @@ jobs:
           cat "$tagsToBuildOutput" >>"$GITHUB_OUTPUT"
           echo "__TAGS_TO_BUILD__" >>"$GITHUB_OUTPUT"
     outputs:
+      image_namespace: ${{ steps.image-name-info.outputs.image_namespace }}
+      full_image_name: ${{ steps.image-name-info.outputs.full_image_name }}
+      all_tags: ${{ steps.image-name-info.outputs.all_tags }}
       should_build: ${{ steps.should-build.outputs.should_build }}
       tags_to_build: ${{ steps.should-build.outputs.tags_to_build }}
   build-images:
     name: Build Images (if necessary)
     needs: 
-      - generate-image-name-info
-      - determine-whether-to-build
-    if: ${{ needs.determine-whether-to-build.outputs.should_build == 'true' }}
+      - prepare
+    if: ${{ needs.prepare.outputs.should_build == 'true' }}
     env:
       password: ${{ secrets.password }}
     strategy:
@@ -222,7 +214,7 @@ jobs:
       - name: "Generate `tags` argument for 'docker/metadata-action'"
         id: tags-for-metadata-action
         env:
-          D_TAGS: ${{ needs.determine-whether-to-build.outputs.tags_to_build }}
+          D_TAGS: ${{ needs.prepare.outputs.tags_to_build }}
           D_ARCH: ${{ steps.arch-and-platform.outputs.arch }}
         shell: bash
         run: |
@@ -251,7 +243,7 @@ jobs:
         id: metadata
         uses: docker/metadata-action@v5
         with:
-          images: ${{ needs.generate-image-name-info.outputs.full_image_name }}
+          images: ${{ needs.prepare.outputs.full_image_name }}
           tags: ${{ steps.tags-for-metadata-action.outputs.tags }}
       - name: Build Image
         id: build-image
@@ -265,7 +257,7 @@ jobs:
           push: false
           tags: |
             ${{ steps.metadata.outputs.tags }}
-            ${{ needs.generate-image-name-info.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}
+            ${{ needs.prepare.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}
           labels: ${{ steps.metadata.outputs.labels }}
           provenance: false
           sbom: false
@@ -277,7 +269,7 @@ jobs:
         env:
           TEST_COMMAND_SHELL: ${{ inputs.test-command-shell }}
           TEST_COMMAND: ${{ inputs.test-command }}
-          DOCKER_TEST_TAG: "${{ needs.generate-image-name-info.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}"
+          DOCKER_TEST_TAG: "${{ needs.prepare.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}"
         run: |
           case "$TEST_COMMAND_SHELL" in
           bash)
@@ -295,7 +287,7 @@ jobs:
       - name: Test Image (Script File)
         if: ${{ inputs.test-script != '' }}
         env:
-          DOCKER_TEST_TAG: "${{ needs.generate-image-name-info.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}"
+          DOCKER_TEST_TAG: "${{ needs.prepare.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}"
         run: |
           if [[ ! -f "${{ inputs.test-script }}" ]]; then
             echo '::error title=Missing test script::Script file not found.'
@@ -323,10 +315,9 @@ jobs:
   merge-images:
     name: Merge Images (if necessary)
     needs:
-      - generate-image-name-info
-      - determine-whether-to-build
+      - prepare
       - build-images
-    if: ${{ inputs.push && needs.determine-whether-to-build.outputs.should_build == 'true' }}
+    if: ${{ inputs.push && needs.prepare.outputs.should_build == 'true' }}
     runs-on:
       - ubuntu-latest
     env:
@@ -343,8 +334,8 @@ jobs:
           password: ${{ secrets.password }}
       - name: Merge Images
         env:
-          FULL_IMAGE_NAME: ${{ needs.generate-image-name-info.outputs.full_image_name }}
-          BUILT_TAGS: ${{ needs.determine-whether-to-build.outputs.tags_to_build }}
+          FULL_IMAGE_NAME: ${{ needs.prepare.outputs.full_image_name }}
+          BUILT_TAGS: ${{ needs.prepare.outputs.tags_to_build }}
         shell: bash
         run: |
           declare tagLine
@@ -363,8 +354,7 @@ jobs:
   generate-results:
     name: Generate Results
     needs:
-      - generate-image-name-info
-      - determine-whether-to-build
+      - prepare
       - merge-images
     if: ${{ ! failure() }}
     runs-on: ubuntu-latest
@@ -372,10 +362,10 @@ jobs:
       - name: Generate Results
         id: generate-results
         env:
-          FULL_IMAGE_NAME: ${{ needs.generate-image-name-info.outputs.full_image_name }}
-          ALL_TAGS: ${{ needs.generate-image-name-info.outputs.all_tags }}
-          SHOULD_BUILD: ${{ needs.determine-whether-to-build.outputs.should_build }}
-          BUILT_TAGS: ${{ needs.determine-whether-to-build.outputs.tags_to_build }}
+          FULL_IMAGE_NAME: ${{ needs.prepare.outputs.full_image_name }}
+          ALL_TAGS: ${{ needs.prepare.outputs.all_tags }}
+          SHOULD_BUILD: ${{ needs.prepare.outputs.should_build }}
+          BUILT_TAGS: ${{ needs.prepare.outputs.tags_to_build }}
         shell: bash
         run: |
           set -eu
@@ -491,7 +481,7 @@ jobs:
             // Return the result
             return allImageTags[0];
     outputs:
-      all-skipped: ${{ needs.determine-whether-to-build.outputs.should_build != 'true' }}
+      all-skipped: ${{ needs.prepare.outputs.should_build != 'true' }}
       results: ${{ steps.generate-results.outputs.results }}
       resultsJSON: ${{ steps.generate-results.outputs.resultsJSON }}
       preferred-image-tag: ${{ steps.summary-and-preferred-image-tag.outputs.result }}
