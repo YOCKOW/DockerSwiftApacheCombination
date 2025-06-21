@@ -481,7 +481,7 @@ jobs:
               'Built Images', '2'
             ).addList(
               allImageTags.map((aTag) => {
-                const status = parsedResults[aTag] ? '✅ Built' : '⏭️ Skipped';
+                const status = parsedResults[aTag] ? '✅ Built' : '⏭️ Skipped (Already exists)';
                 return `\`${aTag}\`: ${status}`
               })
             );
