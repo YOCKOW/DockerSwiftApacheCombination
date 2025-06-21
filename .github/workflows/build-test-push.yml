@@ -216,6 +216,15 @@ jobs:
             }
 
             return tags;
+      - name: View Generated Conditions
+        env:
+          ARRANGED_DEPS_RESULTS_JSON: ${{ steps.arrange-deps-results.outputs.result }}
+          FORCE_PUSH: ${{ steps.force-push.outputs.result }}
+          TAGS_JSON: ${{ steps.generate-tags.outputs.result }}
+        run: |
+          echo "Deps Results (JSON): $ARRANGED_DEPS_RESULTS_JSON"
+          echo "Force Push?: $FORCE_PUSH"
+          echo "Tags (JSON): $TAGS_JSON"
     outputs:
       arranged-deps-results-json: ${{ steps.arrange-deps-results.outputs.result }}
       force-push: ${{ steps.force-push.outputs.result }}
