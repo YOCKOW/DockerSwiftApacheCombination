@@ -63,15 +63,6 @@ on:
       password:
         description: "Password to login Docker Registry"
         required: false
-    outputs:
-      apache-http-server-image-noble:
-        value: ${{ jobs.generate-outputs.outputs.apache-http-server-image-noble }}
-      apache-http-server-image-jammy:
-        value: ${{ jobs.generate-outputs.outputs.apache-http-server-image-jammy }}
-      skipped-noble:
-        value: ${{ jobs.generate-outputs.outputs.skipped-noble }}
-      skipped-jammy:
-        value: ${{ jobs.generate-outputs.outputs.skipped-jammy }}
 jobs:
   prepare:
     name: Prepare
@@ -370,13 +361,14 @@ jobs:
       push: true
     secrets:
       password: ${{ secrets.password }}
-  generate-outputs:
+  upload-results:
+    name: Upload Results
     needs:
       - build-apache-http-server
     runs-on: ubuntu-latest
     steps:
-      - name: Generate Outputs
-        id: generate-outputs
+      - name: Save Results to Files
+        id: save-results
         env:
           APACHE_HTTP_SERVER_IMAGE: ${{ needs.build-apache-http-server.outputs.preferred-image-tag }}
           BASE_OS_LABEL: ${{ inputs.base-os-label }}
@@ -395,11 +387,20 @@ jobs:
             exit 1
           fi
 
-          echo "apache-http-server-image-${BASE_OS_LABEL}=${APACHE_HTTP_SERVER_IMAGE}" >>"$GITHUB_OUTPUT"
-          echo "skipped-${BASE_OS_LABEL}=${SKIPPED}" >>"$GITHUB_OUTPUT"
-    outputs:
-      apache-http-server-image-noble: ${{ steps.generate-outputs.outputs.apache-http-server-image-noble }}
-      apache-http-server-image-jammy: ${{ steps.generate-outputs.outputs.apache-http-server-image-jammy }}
-      skipped-noble: ${{ steps.generate-outputs.outputs.skipped-noble }}
-      skipped-jammy: ${{ steps.generate-outputs.outputs.skipped-jammy }}
-        
+          declare -r apacheHTTPServerImageFilename="apache-http-server-image-${BASE_OS_LABEL}"
+          declare -r skippedFilename="skipped-${BASE_OS_LABEL}"
+          echo "$APACHE_HTTP_SERVER_IMAGE" >"$apacheHTTPServerImageFilename"
+          echo "${SKIPPED}" >"$skippedFilename"
+
+          {
+            echo "generated-files<<__GENERATED_FILES__"
+            echo "$apacheHTTPServerImageFilename"
+            echo "$skippedFilename"
+            echo "__GENERATED_FILES__"
+          } >>"$GITHUB_OUTPUT"
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: DepsResults-${{ inputs.base-os-label }}
+          path: ${{ steps.save-results.outputs.generated-files }}
+          if-no-files-found: error
