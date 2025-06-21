@@ -229,7 +229,7 @@ jobs:
       arranged-deps-results-json: ${{ steps.arrange-deps-results.outputs.result }}
       force-push: ${{ steps.force-push.outputs.result }}
       tags-json: ${{ steps.generate-tags.outputs.result }}
-  build-prod:
+  test-matrix:
     needs:
       - constants
       - generate-swift-image-build-conditions
@@ -237,26 +237,39 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
-        swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
-    name: Build Swift ${{ matrix.swift-version }} image for ${{ matrix.os_label }}
-    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
-    with:
-      if-absent: >-
-        ${{
-          needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
-          fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
-        }}
-      dockerfile: ./images/prod/Swift/Dockerfile
-      build-args: |
-        SWIFT_VERSION=${{ matrix.swift-version }}
-        BASE_OS_LABEL=${{ matrix.os_label }}
-        APACHE_HTTP_SERVER_IMAGE=${{ fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).apache_http_server_image[matrix.os_label] }}
-      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
-      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
-      image-basename: ${{ needs.constants.outputs.DOCKER_PROD_IMAGE_BASENAME }}
-      tags: ${{ fromJson(needs.generate-swift-image-build-conditions.outputs.tags-json)[matrix.swift-version][matrix.os_label] }}
-      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
-      push: true
-    secrets:
-      password: ${{ secrets.GITHUB_TOKEN }}
+        # swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
+    name: ${{ matrix.os_label }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ${{ matrix.os_label }}
+  # build-prod:
+  #   needs:
+  #     - constants
+  #     - generate-swift-image-build-conditions
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
+  #       swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
+  #   name: Build Swift ${{ matrix.swift-version }} image for ${{ matrix.os_label }}
+  #   uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+  #   with:
+  #     if-absent: >-
+  #       ${{
+  #         needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
+  #         fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
+  #       }}
+  #     dockerfile: ./images/prod/Swift/Dockerfile
+  #     build-args: |
+  #       SWIFT_VERSION=${{ matrix.swift-version }}
+  #       BASE_OS_LABEL=${{ matrix.os_label }}
+  #       APACHE_HTTP_SERVER_IMAGE=${{ fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).apache_http_server_image[matrix.os_label] }}
+  #     registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+  #     username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+  #     image-basename: ${{ needs.constants.outputs.DOCKER_PROD_IMAGE_BASENAME }}
+  #     tags: ${{ fromJson(needs.generate-swift-image-build-conditions.outputs.tags-json)[matrix.swift-version][matrix.os_label] }}
+  #     test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+  #     push: true
+  #   secrets:
+  #     password: ${{ secrets.GITHUB_TOKEN }}
 
