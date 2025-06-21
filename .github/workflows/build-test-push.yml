@@ -236,15 +236,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
         include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
+        swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
     name: Build Swift ${{ matrix.swift-version }} image for ${{ matrix.os_label }}
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
       if-absent: >-
         ${{
           needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
-          fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label] == 'true'
+          fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
         }}
       dockerfile: ./images/prod/Swift/Dockerfile
       build-args: |
