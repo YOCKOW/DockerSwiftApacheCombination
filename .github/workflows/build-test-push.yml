@@ -135,6 +135,7 @@ jobs:
     env:
       ARTIFACTS_DIR: artifacts
       BASE_OS_IMAGES_JSON: ${{ needs.constants.outputs.BASE_OS_IMAGES }}
+      SWIFT_VERSIONS_JSON: ${{ needs.constants.outputs.SWIFT_VERSIONS }}
     steps:
       - name: Download Results
         uses: actions/download-artifact@v4
@@ -183,7 +184,6 @@ jobs:
         id: generate-tags
         uses: actions/github-script@v7
         env:
-          SWIFT_VERSIONS_JSON: ${{ needs.constants.outputs.SWIFT_VERSIONS }}
           TAG_SUFFIXES: ${{ needs.constants.outputs.DOCKER_TAG_NAME_SUFFIXES }}
           APACHE_HTTP_SERVER_VERSION: ${{ needs.constants.outputs.APACHE_HTTP_SERVER_VERSION }}
         with:
@@ -216,60 +216,83 @@ jobs:
             }
 
             return tags;
+      - name: Generate Job Matrix Inclusion
+        id: generate-job-matrix-inclusion
+        uses: actions/github-script@v7
+        with:
+          script: |
+            /*
+            This is necessary because there's unexpected feature (bug?) in GitHub Actions.
+
+            ```
+            matrix:
+              include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
+              swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
+            ```
+
+            doesn't work expectedly...
+            */
+
+            const baseOSImages = JSON.parse(process.env.BASE_OS_IMAGES_JSON);
+            const swiftVersions = JSON.parse(process.env.SWIFT_VERSIONS_JSON);
+
+            const inclusion = [];
+            for (const baseOSImageItem of baseOSImages) {
+              for (const swiftVersion of swiftVersions) {
+                inclusion.push({
+                  "swift-version": swiftVersion,
+                  "image_name": baseOSImageItem.image_name,
+                  "os_label": baseOSImageItem.os_label
+                });
+              }
+            }
+
+            if (inclusion.length != baseOSImages.length * swiftVersions.length) {
+              throw new Error('Unexpected number of matrix includ');
+            }
+            return inclusion;
       - name: View Generated Conditions
         env:
           ARRANGED_DEPS_RESULTS_JSON: ${{ steps.arrange-deps-results.outputs.result }}
           FORCE_PUSH: ${{ steps.force-push.outputs.result }}
           TAGS_JSON: ${{ steps.generate-tags.outputs.result }}
+          MATRIX_INCLUSION: ${{ steps.generate-job-matrix-inclusion.outputs.result }}
         run: |
           echo "Deps Results (JSON): $ARRANGED_DEPS_RESULTS_JSON"
           echo "Force Push?: $FORCE_PUSH"
           echo "Tags (JSON): $TAGS_JSON"
+          echo "Matrix Includes (JSON): $MATRIX_INCLUSION"
     outputs:
       arranged-deps-results-json: ${{ steps.arrange-deps-results.outputs.result }}
       force-push: ${{ steps.force-push.outputs.result }}
       tags-json: ${{ steps.generate-tags.outputs.result }}
-  test-matrix:
+      matrix-inclusion: ${{ steps.generate-job-matrix-inclusion.outputs.result }}
+  build-prod:
     needs:
       - constants
       - generate-swift-image-build-conditions
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
-        # swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
-    name: ${{ matrix.os_label }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ${{ matrix.os_label }}
-  # build-prod:
-  #   needs:
-  #     - constants
-  #     - generate-swift-image-build-conditions
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
-  #       swift-version: ${{ fromJson(needs.constants.outputs.SWIFT_VERSIONS) }}
-  #   name: Build Swift ${{ matrix.swift-version }} image for ${{ matrix.os_label }}
-  #   uses: ./.github/workflows/reusable_build-multiplatform-image.yml
-  #   with:
-  #     if-absent: >-
-  #       ${{
-  #         needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
-  #         fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
-  #       }}
-  #     dockerfile: ./images/prod/Swift/Dockerfile
-  #     build-args: |
-  #       SWIFT_VERSION=${{ matrix.swift-version }}
-  #       BASE_OS_LABEL=${{ matrix.os_label }}
-  #       APACHE_HTTP_SERVER_IMAGE=${{ fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).apache_http_server_image[matrix.os_label] }}
-  #     registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
-  #     username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
-  #     image-basename: ${{ needs.constants.outputs.DOCKER_PROD_IMAGE_BASENAME }}
-  #     tags: ${{ fromJson(needs.generate-swift-image-build-conditions.outputs.tags-json)[matrix.swift-version][matrix.os_label] }}
-  #     test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
-  #     push: true
-  #   secrets:
-  #     password: ${{ secrets.GITHUB_TOKEN }}
-
+        include: ${{ fromJson(needs.generate-swift-image-build-conditions.outputs.matrix-inclusion) }}
+    name: Build Swift ${{ matrix.swift-version }} image for ${{ matrix.os_label }}
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: >-
+        ${{
+          needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
+          fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
+        }}
+      dockerfile: ./images/prod/Swift/Dockerfile
+      build-args: |
+        SWIFT_VERSION=${{ matrix.swift-version }}
+        BASE_OS_LABEL=${{ matrix.os_label }}
+        APACHE_HTTP_SERVER_IMAGE=${{ fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).apache_http_server_image[matrix.os_label] }}
+      registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
+      username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
+      image-basename: ${{ needs.constants.outputs.DOCKER_PROD_IMAGE_BASENAME }}
+      tags: ${{ fromJson(needs.generate-swift-image-build-conditions.outputs.tags-json)[matrix.swift-version][matrix.os_label] }}
+      test-command: docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      push: true
+    secrets:
+      password: ${{ secrets.GITHUB_TOKEN }}
