@@ -190,3 +190,5 @@ COPY --from=pcre2-image $LICENSES_DIR $LICENSES_DIR
 COPY --from=zlib-image $LICENSES_DIR $LICENSES_DIR
 COPY ./tools/show-licenses /usr/local/bin/show-licenses
 RUN chmod 755 /usr/local/bin/show-licenses
+
+ENV PATH="${APACHE_HTTP_SERVER_INSTALL_PREFIX}/bin:$PATH"
