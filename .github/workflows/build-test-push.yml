@@ -141,6 +141,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ env.ARTIFACTS_DIR }}
+          pattern: DepsResults-*
       - name: Arrange Deps Results
         id: arrange-deps-results
         uses: actions/github-script@v7
