@@ -31,6 +31,7 @@ jobs:
               {
                 echo "tag_name_suffixes<<__TAG_NAME_SUFFIXES__"
                 echo "latest"
+                echo release-$(date '+%Y%m%d')-latest
                 echo release-$(date '+%Y%m%d-%H%M%S')
                 echo "__TAG_NAME_SUFFIXES__"
               } >>"$GITHUB_OUTPUT"
