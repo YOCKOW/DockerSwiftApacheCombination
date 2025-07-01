@@ -1,0 +1,20 @@
+#!/usr/bin/bash
+
+set -eu
+
+# Initialize
+groupmod --gid "$WWW_GROUP_ID" "$WWW_GROUP_NAME"
+cd "/home/$WWW_USER_NAME"
+chgrp -R "$WWW_GROUP_NAME" .
+chmod -R ug=rwX,o= .
+
+# Run
+if [[ $# -lt 1 ]]; then
+  exec "$APACHE_HTTP_SERVER_INSTALL_PREFIX"/bin/httpd -DFOREGROUND
+elif [[ "$1" == "httpd" ]]; then
+  shift
+  exec "$APACHE_HTTP_SERVER_INSTALL_PREFIX"/bin/httpd -DFOREGROUND "$@"
+else
+  "$APACHE_HTTP_SERVER_INSTALL_PREFIX"/bin/apachectl start
+  exec gosu "$WWW_USER_NAME" "$@"
+fi
