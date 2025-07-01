@@ -98,4 +98,5 @@ COPY --from=apache-http-server-image $ZLIB_INSTALL_PREFIX $ZLIB_INSTALL_PREFIX
 COPY --from=apache-http-server-image $LICENSES_DIR $LICENSES_DIR
 COPY --from=swift-license-fetcher $LICENSES_DIR $LICENSES_DIR
 
+STOPSIGNAL SIGWINCH
 ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint"]

@@ -36,5 +36,6 @@ sudo docker run --rm -it -d \
   httpd -f /home/swifche/web/httpd.conf
 curl -v --http2 --fail-with-body --retry 3 --retry-delay 2 --retry-all-errors localhost:"$wwwPort"
 sudo docker stop swifche-test
+tail -n +1 "$repoDir"/test/web/Logs/*.txt
 
 sudo docker run --rm -t "$dockerImage" show-licenses
