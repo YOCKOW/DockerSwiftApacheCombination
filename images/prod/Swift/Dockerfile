@@ -49,6 +49,8 @@ RUN mkdir -p "${LICENSES_DIR}" \
 FROM $SWIFT_IMAGE
 
 ARG APACHE_HTTP_SERVER_INSTALL_PREFIX
+ENV APACHE_HTTP_SERVER_INSTALL_PREFIX="$APACHE_HTTP_SERVER_INSTALL_PREFIX"
+
 ARG EXPAT_INSTALL_PREFIX
 ARG LIBXML2_INSTALL_PREFIX
 ARG LUA_INSTALL_PREFIX
@@ -62,6 +64,28 @@ ARG LICENSES_DIR
 ARG SWIFT_LIB_DIR
 ENV SWIFT_LIB_DIR="$SWIFT_LIB_DIR"
 
+ARG WWW_USER_NAME="swifche"
+ARG WWW_GROUP_NAME="swifche"
+ARG WWW_USER_ID="1450"
+ARG WWW_GROUP_ID="1450"
+ENV WWW_USER_NAME="$WWW_USER_NAME"
+ENV WWW_GROUP_NAME="$WWW_GROUP_NAME"
+ENV WWW_USER_ID="$WWW_USER_ID"
+ENV WWW_GROUP_ID="$WWW_GROUP_ID"
+
+COPY ./tools/show-licenses /usr/local/bin/show-licenses
+COPY ./tools/entrypoint /entrypoint
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+	--mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gosu \
+        tini \
+    && chmod 755 /usr/local/bin/show-licenses \
+    && chmod 755 /entrypoint \
+    && groupadd --gid "$WWW_GROUP_ID" "$WWW_GROUP_NAME" \
+    && useradd --create-home --no-log-init --gid "$WWW_GROUP_ID" --uid "$WWW_USER_ID"  "$WWW_USER_NAME"
+
 COPY --from=apache-http-server-image $APACHE_HTTP_SERVER_INSTALL_PREFIX $APACHE_HTTP_SERVER_INSTALL_PREFIX
 COPY --from=apache-http-server-image $EXPAT_INSTALL_PREFIX $EXPAT_INSTALL_PREFIX
 COPY --from=apache-http-server-image $LIBXML2_INSTALL_PREFIX $LIBXML2_INSTALL_PREFIX
@@ -74,5 +98,4 @@ COPY --from=apache-http-server-image $ZLIB_INSTALL_PREFIX $ZLIB_INSTALL_PREFIX
 COPY --from=apache-http-server-image $LICENSES_DIR $LICENSES_DIR
 COPY --from=swift-license-fetcher $LICENSES_DIR $LICENSES_DIR
 
-COPY ./tools/show-licenses /usr/local/bin/show-licenses
-RUN chmod 755 /usr/local/bin/show-licenses
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint"]

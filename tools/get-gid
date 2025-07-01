@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -eu
+
+declare -r groupName="${1:-}"
+if [[ -z "$groupName" ]]; then
+  echo "No group name is given." >&2
+  exit 1
+fi
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  dscl . -list /Groups PrimaryGroupID | grep -E '^\s*'"$groupName" | xargs | cut -d ' ' -f 2
+else
+  getent group "$groupName" | cut -d ':' -f 3
+fi
