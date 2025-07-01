@@ -294,20 +294,7 @@ jobs:
       username: ${{ needs.constants.outputs.DOCKER_USERNAME }}
       image-basename: ${{ needs.constants.outputs.DOCKER_PROD_IMAGE_BASENAME }}
       tags: ${{ fromJson(needs.generate-swift-image-build-conditions.outputs.tags-json)[matrix.swift-version][matrix.os_label] }}
-      test-command: |
-        set -eu
-
-        declare -r tmpGroupID="1234"
-        declare -r tmpUserID="1234"
-
-        sudo groupadd --gid "$tmpGroupID" swifche
-        sudo useradd --create-home --no-log-init --gid "$tmpGroupID" --uid "$tmpUserID" swifche
-
-        sudo docker run --rm -it -d -p 60080:80 --env WWW_GROUP_ID="$tmpGroupID" -v ./test/web:/home/swifche/web --name swifche-test "$DOCKER_TEST_TAG" httpd -f /home/swifche/web/httpd.conf \
-        && curl -v --http2 --fail-with-body localhost:60080 \
-        && sudo docker stop swifche-test
-
-        docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
+      test-script: ./tools/test-prod
       push: true
     secrets:
       password: ${{ secrets.GITHUB_TOKEN }}

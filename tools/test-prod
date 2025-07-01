@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+set -eu
+
+declare -r toolsDir=$(cd $(dirname "$0") && pwd)
+declare -r repoDir=$(dirname "$toolsDir")
+
+declare -r dockerImage="${1:-${DOCKER_TEST_TAG:-}}"
+if [[ -z "$dockerImage" ]]; then
+  echo "No image tag was given." >&2
+  exit 1
+fi
+
+if [[ -v GITHUB_ACTIONS ]]; then
+  set -x
+  sudo groupadd --gid "1234" swifche
+  sudo useradd --create-home --no-log-init --gid "1234" --uid "1234" swifche
+  { set +x; } 2>/dev/null
+fi
+
+declare -r wwwGroupID=$("${toolsDir}/get-gid" swifche)
+if [[ -z "$wwwGroupID" ]]; then
+  echo "Group 'swifche' was not found." >&2
+  exit 1
+fi
+
+
+declare -r wwwPort="60080"
+set -x
+sudo docker run --rm -it -d \
+  -p "$wwwPort":80 \
+  --env WWW_GROUP_ID="$wwwGroupID" \
+  -v "${repoDir}/test/web":/home/swifche/web \
+  --name swifche-test \
+  "$dockerImage" \
+  httpd -f /home/swifche/web/httpd.conf
+curl -v --http2 --fail-with-body --retry 3 --retry-delay 2 --retry-all-errors localhost:"$wwwPort"
+sudo docker stop swifche-test
+
+sudo docker run --rm -t "$dockerImage" show-licenses
