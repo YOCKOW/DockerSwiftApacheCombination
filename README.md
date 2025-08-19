@@ -20,7 +20,7 @@ See its [Versions](https://github.com/YOCKOW/DockerSwiftApacheCombination/pkgs/c
 
 As a default, [tools/entrypoint](tools/entrypoint) is used as `ENTRYPOINT` program.
 
-You can run the cntainer image just as an HTTP server:
+You can run the container image just as an HTTP server:
 
 ```console
 # docker run -it -d --rm -p 60080:80 ghcr.io/yockow/swift-de-cgi:Swift_6.1.2-noble-latest
