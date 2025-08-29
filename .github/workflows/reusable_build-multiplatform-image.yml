@@ -39,6 +39,30 @@ on:
         description: "Tag Names (List separated by newlines)"
         type: string
         required: true
+      cache-file-path:
+        description: "Path to file/directory to be restored/saved using `actions/cache`."
+        type: string
+        required: false
+        default: ""
+      cache-file-key-suffix:
+        description: "Suffix that is added to `key` parameter of `action/cache`."
+        type: string
+        required: false
+      set-up-command:
+        description: "Command to be executed before building the image."
+        type: string
+        required: false
+        default: ""
+      set-up-command-shell:
+        description: "Shell to execute the command: `bash` or `zsh`."
+        type: string
+        required: false
+        default: "bash"
+      set-up-script:
+        description: "Script to be executed before building the image"
+        type: string
+        required: false
+        default: ""
       test-command:
         description: "Command to be executed after building the image and before pushing it"
         type: string
@@ -239,6 +263,62 @@ jobs:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.username }}
           password: ${{ secrets.password }}
+      - name: Generate Cache File Keys (if necessary)
+        if: ${{ inputs.cache-file-path != '' }}
+        id: cache-file-keys
+        env:
+          ALL_TAGS: ${{ needs.prepare.outputs.all_tags }}
+          D_ARCH: ${{ steps.arch-and-platform.outputs.arch }}
+          FULL_IMAGE_NAME: ${{ needs.prepare.outputs.full_image_name }}
+          KEY_SUFFIX: ${{ inputs.cache-file-key-suffix }}
+          TAGS_TO_BUILD: ${{ needs.prepare.outputs.tags_to_build }}
+        run: |
+          declare -r firstTag=$(echo "$TAGS_TO_BUILD" | head -n 1)
+          echo "key=${D_ARCH}-${FULL_IMAGE_NAME}-${firstTag}-${KEY_SUFFIX}" >>"$GITHUB_OUTPUT"
+
+          echo "restore-keys<<__RESTORE_KEYS__" >>"$GITHUB_OUTPUT"
+          declare aTag
+          while IFS= read -r aTag; do
+            echo "${D_ARCH}-${FULL_IMAGE_NAME}-${aTag}-" >>"$GITHUB_OUTPUT"
+          done < <(echo "$ALL_TAGS")
+          echo "${D_ARCH}-${FULL_IMAGE_NAME}-" >>"$GITHUB_OUTPUT"
+          echo "__RESTORE_KEYS__" >>"$GITHUB_OUTPUT"
+      - name: Restore Cache (if necessary)
+        if: ${{ inputs.cache-file-path != '' }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ inputs.cache-file-path }}
+          key: ${{ steps.cache-file-keys.outputs.key }}
+          restore-keys: ${{ steps.cache-file-keys.outputs.restore-keys }}
+      - name: Set Up (Command)
+        if: ${{ inputs.set-up-command != '' }}
+        # Workaround for 'shell' not taking `${{ ... }}`
+        env:
+          SET_UP_COMMAND_SHELL: ${{ inputs.set-up-command-shell }}
+          SET_UP_COMMAND: ${{ inputs.set-up-command }}
+        run: |
+          case "$SET_UP_COMMAND_SHELL" in
+          bash)
+            bash -c "$SET_UP_COMMAND"
+          ;;
+          zsh)
+            sudo apt update && sudo apt install zsh
+            zsh -c "$SET_UP_COMMAND"
+          ;;
+          *)
+            echo '::error::Unsupported shell.'
+            exit 1
+          ;;
+          esac
+      - name: Set Up (Script File)
+        if: ${{ inputs.set-up-script != '' }}
+        run: |
+          if [[ ! -f "${{ inputs.set-up-script }}" ]]; then
+            echo '::error title=Missing set-up script::Script file not found.'
+            exit 1
+          fi
+          chmod a+x "${{ inputs.set-up-script }}"
+          "${{ inputs.set-up-script }}"
       - name: Extract metadata (tags, labels) for Docker
         id: metadata
         uses: docker/metadata-action@v5
