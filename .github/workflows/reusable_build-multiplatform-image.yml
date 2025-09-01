@@ -273,15 +273,30 @@ jobs:
           KEY_SUFFIX: ${{ inputs.cache-file-key-suffix }}
           TAGS_TO_BUILD: ${{ needs.prepare.outputs.tags_to_build }}
         run: |
+          declare -r keyPrefix="${D_ARCH}-${FULL_IMAGE_NAME}"
           declare -r firstTag=$(echo "$TAGS_TO_BUILD" | head -n 1)
-          echo "key=${D_ARCH}-${FULL_IMAGE_NAME}-${firstTag}-${KEY_SUFFIX}" >>"$GITHUB_OUTPUT"
+          declare -r primaryKey="${keyPrefix}-${firstTag}-${KEY_SUFFIX}"
+          echo "key=${primaryKey}" >>"$GITHUB_OUTPUT"
 
           echo "restore-keys<<__RESTORE_KEYS__" >>"$GITHUB_OUTPUT"
+
+          declare aKey="$primaryKey"
+          declare -r shortestKey="${keyPrefix}-${firstTag}-"
+          declare -r shortestKeyLength=$(echo "$shortestKey" | wc -c)
+          while : ; do
+            aKey=$(echo "$aKey" | sed -E 's/-[^\-]+$/-/')
+            if [[ $(( $(echo "$aKey" | wc -c) + 0 )) -le $(( $shortestKeyLength + 0 )) ]]; then
+              break
+            fi
+            echo "$aKey" >>"$GITHUB_OUTPUT"
+          done
+
           declare aTag
           while IFS= read -r aTag; do
-            echo "${D_ARCH}-${FULL_IMAGE_NAME}-${aTag}-" >>"$GITHUB_OUTPUT"
+            echo "${keyPrefix}-${aTag}-" >>"$GITHUB_OUTPUT"
           done < <(echo "$ALL_TAGS")
-          echo "${D_ARCH}-${FULL_IMAGE_NAME}-" >>"$GITHUB_OUTPUT"
+          echo "${keyPrefix}-" >>"$GITHUB_OUTPUT"
+
           echo "__RESTORE_KEYS__" >>"$GITHUB_OUTPUT"
       - name: Restore Cache (if necessary)
         if: ${{ inputs.cache-file-path != '' }}
