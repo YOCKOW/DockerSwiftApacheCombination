@@ -1,0 +1,32 @@
+name: Test Reusable Workflows
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/**.yml"
+jobs:
+  test-cache:
+    name: Test Cache
+    uses: ./.github/workflows/reusable_build-multiplatform-image.yml
+    with:
+      if-absent: false
+      context: ./images/test/test-cache
+      dockerfile: ./images/test/test-cache/Dockerfile
+      image-basename: test-cache
+      tags: test-cache
+      cache-file-path: ./images/test/test-cache/my-cache.txt
+      cache-file-key-suffix: key-suffix
+      set-up-command: |
+        cd ./images/test/test-cache/
+        declare -r cacheFilename="my-cache.txt"
+
+        if [[ ! -f "${cacheFilename}" ]]; then
+          echo "::notice::'${cacheFilename}' Not Found."
+          echo "::notice::Creating '${cacheFilename}'..."
+          echo "My Cache!" >"${cacheFilename}"
+        fi
+        echo "::notice::Content of '${cacheFilename}' is '$(cat "${cacheFilename}")'"
+      test-command: |
+        docker run --rm -t "$DOCKER_TEST_TAG" sh -c 'cat my-cache.txt'
+      push: false
