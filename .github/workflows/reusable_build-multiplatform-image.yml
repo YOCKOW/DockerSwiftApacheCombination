@@ -273,19 +273,22 @@ jobs:
           KEY_SUFFIX: ${{ inputs.cache-file-key-suffix }}
           TAGS_TO_BUILD: ${{ needs.prepare.outputs.tags_to_build }}
         run: |
+          set -eu
+
           declare -r keyPrefix="${D_ARCH}-${FULL_IMAGE_NAME}"
           declare -r firstTag=$(echo "$TAGS_TO_BUILD" | head -n 1)
-          declare -r primaryKey="${keyPrefix}-${firstTag}-${KEY_SUFFIX}"
+          declare -r primaryKey="${keyPrefix}-${firstTag}-${KEY_SUFFIX}"; echo "::debug::Primary Key is '${primaryKey}'."
           echo "key=${primaryKey}" >>"$GITHUB_OUTPUT"
 
           echo "restore-keys<<__RESTORE_KEYS__" >>"$GITHUB_OUTPUT"
 
           declare aKey="$primaryKey"
-          declare -r shortestKey="${keyPrefix}-${firstTag}-"
-          declare -r shortestKeyLength=$(echo "$shortestKey" | wc -c)
+          declare -r shortestKey="${keyPrefix}-${firstTag}-"; echo "::debug::Expected shortest key generated from the primary key is '${shortestKey}'."
+          declare -r shortestKeyLength=$(echo "$shortestKey" | wc -c | xargs); echo "::debug::The length of the shortest key is ${shortestKeyLength}."
           while : ; do
-            aKey=$(echo "$aKey" | sed -E 's/-[^\-]+$/-/')
+            aKey=$(echo "${aKey%-}" | sed -E 's/-[^\-]+$/-/'); echo "::debug::Next restore key is '${aKey}'."
             if [[ $(( $(echo "$aKey" | wc -c) + 0 )) -le $(( $shortestKeyLength + 0 )) ]]; then
+              echo "::debug::'$aKey' is too short."
               break
             fi
             echo "$aKey" >>"$GITHUB_OUTPUT"
@@ -293,7 +296,8 @@ jobs:
 
           declare aTag
           while IFS= read -r aTag; do
-            echo "${keyPrefix}-${aTag}-" >>"$GITHUB_OUTPUT"
+            aKey="${keyPrefix}-${aTag}-"; echo "::debug::Next restore key is '${aKey}'."
+            echo "$aKey" >>"$GITHUB_OUTPUT"
           done < <(echo "$ALL_TAGS")
           echo "${keyPrefix}-" >>"$GITHUB_OUTPUT"
 
