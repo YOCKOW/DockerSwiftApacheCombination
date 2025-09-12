@@ -74,12 +74,12 @@ jobs:
       APACHE_APR_VERSION: "1.7.6"
       APACHE_APRUTIL_VERSION: "1.6.3"
       EXPAT_VERSION: "2.7.1"
-      LIBXML2_VERSION: "2.14.5"
+      LIBXML2_VERSION: "2.14.6"
       LUA_VERSION: "5.4.8"
       LUA_HASH: "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae"
-      NGHTTP2_VERSION: "1.66.0"
+      NGHTTP2_VERSION: "1.67.0"
       OPENSSL_VERSION: "3.5.2"
-      PCRE2_VERSION: "10.45"
+      PCRE2_VERSION: "10.46"
       ZLIB_VERSION: "1.3.1"
       FORCE_PUSH: ${{ steps.determine-force-push.outputs.result }}
       BASE_OS_IMAGES: |
