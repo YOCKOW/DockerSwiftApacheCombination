@@ -95,7 +95,7 @@ jobs:
         ]
       SWIFT_VERSIONS: |
         [
-          "6.1.2",
+          "6.1.3",
           "6.0.3"
         ]
   build-deps:
