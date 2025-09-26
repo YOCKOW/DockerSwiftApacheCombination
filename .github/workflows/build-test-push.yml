@@ -253,7 +253,7 @@ jobs:
             const inclusion = [];
             for (const baseOSImageItem of baseOSImages) {
               for (const swiftVersion of swiftVersions) {
-                if (exclusions.find((excl) => excl['swift-version'] == swiftVersion && excl['os_label'] == basOSImageItem.os_label)) {
+                if (exclusions.find((excl) => excl['swift-version'] == swiftVersion && excl['os_label'] == baseOSImageItem.os_label)) {
                   continue;
                 }
                 inclusion.push({
