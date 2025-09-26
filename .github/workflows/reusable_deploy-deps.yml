@@ -172,6 +172,7 @@ jobs:
       dockerfile: ./images/deps/ApacheHTTPServer/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        BASE_OS_LABEL=${{ inputs.base-os-label }}
         APACHE_HTTP_SERVER_VERSION=${{ inputs.apache-http-server-version }}
         APACHE_APR_VERSION=${{ inputs.apache-apr-version }}
         APACHE_APRUTIL_VERSION=${{ inputs.apache-apr-util-version }}
@@ -236,6 +237,7 @@ jobs:
       dockerfile: ./images/deps/libxml2/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        BASE_OS_LABEL=${{ inputs.base-os-label }}
         LIBXML2_VERSION=${{ inputs.libxml2-version }}
         ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
       registry: ${{ inputs.docker-registry }}
@@ -286,6 +288,7 @@ jobs:
       dockerfile: ./images/deps/nghttp2/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        BASE_OS_LABEL=${{ inputs.base-os-label }}
         NGHTTP2_VERSION=${{ inputs.nghttp2-version }}
         OPENSSL_IMAGE=${{ needs.build-openssl.outputs.preferred-image-tag }}
         ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
@@ -314,6 +317,7 @@ jobs:
       dockerfile: ./images/deps/OpenSSL/Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
+        BASE_OS_LABEL=${{ inputs.base-os-label }}
         OPENSSL_VERSION=${{ inputs.openssl-version }}
         ZLIB_IMAGE=${{ needs.build-zlib.outputs.preferred-image-tag }}
       registry: ${{ inputs.docker-registry }}
