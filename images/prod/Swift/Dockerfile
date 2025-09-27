@@ -41,7 +41,7 @@ FROM ubuntu:noble AS swift-license-fetcher
 RUN apt update && apt install -y wget
 
 ARG LICENSES_DIR
-ARG SWIFT_VERSION
+ARG SWIFT_GIT_TAG
 RUN mkdir -p "${LICENSES_DIR}" \
     && wget -q -O "${LICENSES_DIR}/Swift.txt" \
        "https://raw.githubusercontent.com/swiftlang/swift/refs/tags/${SWIFT_GIT_TAG}/LICENSE.txt"
