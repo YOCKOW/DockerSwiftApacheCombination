@@ -28,6 +28,7 @@ ARG PCRE2_INSTALL_PREFIX="/opt/PCRE2"
 ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 
 ARG SWIFT_VERSION="6.2.0"
+ARG SWIFT_GIT_TAG="swift-${SWIFT_VERSION}-RELEASE"
 ARG SWIFT_IMAGE="swift:${SWIFT_VERSION}-${BASE_OS_LABEL}-slim"
 ARG SWIFT_LIB_DIR="/usr/lib/swift/linux"
 
@@ -43,7 +44,7 @@ ARG LICENSES_DIR
 ARG SWIFT_VERSION
 RUN mkdir -p "${LICENSES_DIR}" \
     && wget -q -O "${LICENSES_DIR}/Swift.txt" \
-       "https://raw.githubusercontent.com/swiftlang/swift/refs/tags/swift-${SWIFT_VERSION}-RELEASE/LICENSE.txt"
+       "https://raw.githubusercontent.com/swiftlang/swift/refs/tags/${SWIFT_GIT_TAG}/LICENSE.txt"
 
 ################################################################################
 FROM $SWIFT_IMAGE

@@ -256,8 +256,19 @@ jobs:
                 if (exclusions.find((excl) => excl['swift-version'] == swiftVersion && excl['os_label'] == baseOSImageItem.os_label)) {
                   continue;
                 }
+
+                const minorUpdateRegex = /^(\d+\.\d+)\.0$/;
+                const minorUpdateMatched = swiftVersion.match(minorUpdateRegex);
+                const swiftGitTag = (
+                  (minorUpdateMatched) ?
+                    `swift-${minorUpdateMatched[1]}-RELEASE`
+                  :
+                    `swift-${swiftVersion}-RELEASE`
+                );
+
                 inclusion.push({
                   "swift-version": swiftVersion,
+                  "swift_git_tag": swiftGitTag,
                   "image_name": baseOSImageItem.image_name,
                   "os_label": baseOSImageItem.os_label
                 });
@@ -303,6 +314,7 @@ jobs:
       dockerfile: ./images/prod/Swift/Dockerfile
       build-args: |
         SWIFT_VERSION=${{ matrix.swift-version }}
+        SWIFT_GIT_TAG=${{ matrix.swift_git_tag }}
         BASE_OS_LABEL=${{ matrix.os_label }}
         APACHE_HTTP_SERVER_IMAGE=${{ fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).apache_http_server_image[matrix.os_label] }}
       registry: ${{ needs.constants.outputs.DOCKER_REGISTRY }}
