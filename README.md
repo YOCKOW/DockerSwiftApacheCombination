@@ -10,10 +10,11 @@ See its [Versions](https://github.com/YOCKOW/DockerSwiftApacheCombination/pkgs/c
 
 ### Tag List
 
-|              | Swift 6.0.3                | Swift 6.1.3                |
-|--------------|----------------------------|----------------------------|
-| Ubuntu 22.04 | `Swift_6.0.3-jammy-latest` | `Swift_6.1.3-jammy-latest` |
-| Ubuntu 24.04 | `Swift_6.0.3-noble-latest` | `Swift_6.1.3-noble-latest` |
+|              | Swift 6.0.3                | Swift 6.1.3                | Swift 6.2.0                   |
+|--------------|----------------------------|----------------------------|-------------------------------|
+| Ubuntu 22.04 | `Swift_6.0.3-jammy-latest` | `Swift_6.1.3-jammy-latest` | `Swift_6.2.0-jammy-latest`    |
+| Ubuntu 24.04 | `Swift_6.0.3-noble-latest` | `Swift_6.1.3-noble-latest` | `Swift_6.2.0-noble-latest`    |
+| Debian 12.12 | n/a                        | n/a                        | `Swift_6.2.0-bookworm-latest` |
 
 
 ## How to use
@@ -23,7 +24,7 @@ As a default, [tools/entrypoint](tools/entrypoint) is used as `ENTRYPOINT` progr
 You can run the container image just as an HTTP server:
 
 ```console
-# docker run -it -d --rm -p 60080:80 ghcr.io/yockow/swift-de-cgi:Swift_6.1.3-noble-latest
+# docker run -it -d --rm -p 60080:80 ghcr.io/yockow/swift-de-cgi:Swift_6.2.0-noble-latest
 # curl localhost:60080
 <html><body><h1>It works!</h1></body></html>
 ```
@@ -31,7 +32,7 @@ You can run the container image just as an HTTP server:
 You can specify `httpd.conf`:
 
 ```console
-# docker run -it -d --rm -v /path/to/my/web:/home/swifche/web -p 80:80 ghcr.io/yockow/swift-de-cgi:Swift_6.1.3-noble-latest httpd -f /home/swifche/web/httpd.conf
+# docker run -it -d --rm -v /path/to/my/web:/home/swifche/web -p 80:80 ghcr.io/yockow/swift-de-cgi:Swift_6.2.0-noble-latest httpd -f /home/swifche/web/httpd.conf
 ```
 
 ### User/Group
