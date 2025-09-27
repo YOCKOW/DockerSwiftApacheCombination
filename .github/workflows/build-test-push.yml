@@ -276,7 +276,7 @@ jobs:
             }
 
             if (inclusion.length != baseOSImages.length * swiftVersions.length - exclusions.length) {
-              throw new Error('Unexpected number of matrix includ');
+              throw new Error('Unexpected number of matrix inclusions.');
             }
             return inclusion;
       - name: View Generated Conditions
