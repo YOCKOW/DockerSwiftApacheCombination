@@ -70,7 +70,7 @@ jobs:
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_PROD_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIXES: ${{ steps.define-constants.outputs.tag_name_suffixes }}
-      APACHE_HTTP_SERVER_VERSION: "2.4.65"
+      APACHE_HTTP_SERVER_VERSION: "2.4.66"
       APACHE_APR_VERSION: "1.7.6"
       APACHE_APRUTIL_VERSION: "1.6.3"
       EXPAT_VERSION: "2.7.3"
@@ -99,7 +99,7 @@ jobs:
         ]
       SWIFT_VERSIONS: |
         [
-          "6.2.1",
+          "6.2.3",
           "6.1.3",
           "6.0.3"
         ]
