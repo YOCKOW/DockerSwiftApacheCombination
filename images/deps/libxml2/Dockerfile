@@ -66,7 +66,20 @@ RUN ./autogen.sh \
         --without-python \
         --with-zlib="$ZLIB_INSTALL_PREFIX"
 RUN make && make install
-RUN mkdir -p "$LICENSES_DIR" && cp ./Copyright "${LICENSES_DIR}/libxml2.txt"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+cp ./Copyright "${LICENSES_DIR}/libxml2.txt"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/libxml2.json"
+{
+    "name": "libxml2",
+    "url": "https://gitlab.gnome.org/GNOME/libxml2",
+    "version": "${LIBXML2_VERSION}",
+    "filenames": {
+        "Copyright": "libxml2.txt"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE

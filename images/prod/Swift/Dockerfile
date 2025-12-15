@@ -42,9 +42,21 @@ RUN apt update && apt install -y wget
 
 ARG LICENSES_DIR
 ARG SWIFT_GIT_TAG
-RUN mkdir -p "${LICENSES_DIR}" \
-    && wget -q -O "${LICENSES_DIR}/Swift.txt" \
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+wget -q -O "${LICENSES_DIR}/Swift.txt" \
        "https://raw.githubusercontent.com/swiftlang/swift/refs/tags/${SWIFT_GIT_TAG}/LICENSE.txt"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Swift.json"
+{
+    "name": "Swift",
+    "url": "https://www.swift.org/",
+    "version": "${SWIFT_VERSION}",
+    "filenames": {
+        "LICENSE.txt": "Swift.txt"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $SWIFT_IMAGE

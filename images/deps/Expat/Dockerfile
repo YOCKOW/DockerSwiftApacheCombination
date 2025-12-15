@@ -54,7 +54,20 @@ RUN cmake .\
         -DCMAKE_BUILD_TYPE:STRING=Release \
         -G "Ninja"
 RUN ninja && ninja install
-RUN mkdir -p "$LICENSES_DIR" && cp ./COPYING "${LICENSES_DIR}/Expat.txt"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+cp ./COPYING "${LICENSES_DIR}/Expat.txt"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Expat.json"
+{
+    "name": "Expat",
+    "url": "https://libexpat.github.io/",
+    "version": "${EXPAT_VERSION}",
+    "filenames": {
+        "COPYING": "Expat.txt"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE

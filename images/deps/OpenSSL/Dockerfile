@@ -66,7 +66,20 @@ RUN perl ./Configure \
         shared zlib zlib-dynamic \
         CC=clang CXX=clang++
 RUN make && make install
-RUN mkdir -p "${LICENSES_DIR}" && cp ./LICENSE.txt "${LICENSES_DIR}/OpenSSL.txt"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+cp ./LICENSE.txt "${LICENSES_DIR}/OpenSSL.txt"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/OpenSSL.json"
+{
+    "name": "OpenSSL",
+    "url": "https://openssl-library.org/",
+    "version": "${OPENSSL_VERSION}",
+    "filenames": {
+        "LICENSE.txt": "OpenSSL.txt"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE

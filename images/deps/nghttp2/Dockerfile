@@ -80,7 +80,20 @@ RUN cmake . \
         -DOPENSSL_LIBS="-L${OPENSSL_INSTALL_PREFIX}/lib -lssl -lcrypto"
 
 RUN ninja && ninja install
-RUN mkdir -p "${LICENSES_DIR}" && cp ./COPYING "${LICENSES_DIR}/nghttp2.txt"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+cp ./COPYING "${LICENSES_DIR}/nghttp2.txt"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/nghttp2.json"
+{
+    "name": "nghttp2",
+    "url": "https://nghttp2.org/",
+    "version": "${NGHTTP2_VERSION}",
+    "filenames": {
+        "COPYING": "nghttp2.txt"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE

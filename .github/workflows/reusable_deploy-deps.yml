@@ -196,6 +196,7 @@ jobs:
         declare -r httpdContainerID=$(docker run --rm -d -p 8080:80 -t "$DOCKER_TEST_TAG" httpd -DFOREGROUND)
         curl localhost:8080
         docker stop "$httpdContainerID"
+        docker run --rm -t "$DOCKER_TEST_TAG" tail -n +1 '/licenses/metadata/*.json'
         docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:

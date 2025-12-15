@@ -54,7 +54,20 @@ RUN cmake .\
         -DCMAKE_BUILD_TYPE:STRING=Release \
         -G "Ninja"
 RUN ninja && ninja install
-RUN mkdir -p "$LICENSES_DIR" && cp ./LICENSE "${LICENSES_DIR}/zlib.txt"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+cp ./LICENSE "${LICENSES_DIR}/zlib.txt"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/zlib.json"
+{
+    "name": "zlib",
+    "url": "https://zlib.net/",
+    "version": "${ZLIB_VERSION}",
+    "filenames": {
+        "LICENSE": "zlib.txt"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE

@@ -150,13 +150,63 @@ RUN ./configure \
         --with-pcre="$PCRE2_INSTALL_PREFIX" \
         CC=clang CXX=clang++
 RUN make && make install
-RUN mkdir -p "${LICENSES_DIR}" \
-    && cp ./LICENSE "${LICENSES_DIR}/Apache_HTTP_Server-LICENSE.txt" \
-    && cp ./NOTICE  "${LICENSES_DIR}/Apache_HTTP_Server-NOTICE.txt" \
-    && cp ./srclib/apr/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime-LICENSE.txt" \
-    && cp ./srclib/apr/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime-NOTICE.txt" \
-    && cp ./srclib/apr-util/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime_Utility_Library-LICENSE.txt" \
-    && cp ./srclib/apr-util/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime_Utility_Library-NOTICE.txt"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+
+cp ./LICENSE "${LICENSES_DIR}/Apache_HTTP_Server-LICENSE.txt"
+cp ./NOTICE  "${LICENSES_DIR}/Apache_HTTP_Server-NOTICE.txt"
+cat <<_HTTPD_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Apache_HTTP_Server.json"
+{
+    "name": "Apache HTTP Server",
+    "url": "https://httpd.apache.org/",
+    "version": "${APACHE_HTTP_SERVER_VERSION}",
+    "filenames": {
+        "LICENSE": "Apache_HTTP_Server-LICENSE.txt",
+        "NOTICE": "Apache_HTTP_Server-NOTICE.txt"
+    },
+    "file_order": [
+        "LICENSE",
+        "NOTICE"
+    ]
+}
+_HTTPD_LICENSE_METADATA_
+
+cp ./srclib/apr/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime-LICENSE.txt"
+cp ./srclib/apr/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime-NOTICE.txt"
+cat <<_APR_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Apache_Portable_Runtime.json"
+{
+    "name": "Apache Portable Runtime",
+    "url": "https://apr.apache.org/",
+    "version": "${APACHE_APR_VERSION}",
+    "filenames": {
+        "LICENSE": "Apache_Portable_Runtime-LICENSE.txt",
+        "NOTICE": "Apache_Portable_Runtime-NOTICE.txt"
+    },
+    "file_order": [
+        "LICENSE",
+        "NOTICE"
+    ]
+}
+_APR_LICENSE_METADATA_
+
+cp ./srclib/apr-util/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime_Utility-LICENSE.txt"
+cp ./srclib/apr-util/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime_Utility-NOTICE.txt"
+cat <<_APR_UTIL_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Apache_Portable_Runtime_Utility.json"
+{
+    "name": "Apache Portable Runtime Utility",
+    "url": "https://apr.apache.org/",
+    "version": "${APACHE_APRUTIL_VERSION}",
+    "filenames": {
+        "LICENSE": "Apache_Portable_Runtime_Utility-LICENSE.txt",
+        "NOTICE": "Apache_Portable_Runtime_Utility-NOTICE.txt"
+    },
+    "file_order": [
+        "LICENSE",
+        "NOTICE"
+    ]
+}
+_APR_UTIL_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE

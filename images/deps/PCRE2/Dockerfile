@@ -53,7 +53,20 @@ RUN ./configure \
         --enable-jit \
         CC=clang CXX=clang++
 RUN make && make install
-RUN mkdir -p "$LICENSES_DIR" && cp ./LICENCE.md "${LICENSES_DIR}/PCRE2.md"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "$LICENSES_DIR"
+cp ./LICENCE.md "${LICENSES_DIR}/PCRE2.md"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/PCRE2.json"
+{
+    "name": "PCRE2",
+    "url": "https://pcre2project.github.io/pcre2/",
+    "version": "${PCRE2_VERSION}",
+    "filenames": {
+        "LICENSE.md": "PCRE2.md"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE
