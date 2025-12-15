@@ -54,7 +54,7 @@ RUN ./configure \
         CC=clang CXX=clang++
 RUN make && make install
 RUN <<__LICENSE_COMMANDS__
-mkdir -p "$LICENSES_DIR"
+mkdir -p "${LICENSES_DIR}/metadata"
 cp ./LICENCE.md "${LICENSES_DIR}/PCRE2.md"
 cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/PCRE2.json"
 {
