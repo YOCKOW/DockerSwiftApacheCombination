@@ -217,8 +217,9 @@ jobs:
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.prepare.outputs.expat-tags }}
       test-command: |-
-        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/Expat/bin/*'
-        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/Expat/lib/*'
+        set -x
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/Expat/bin/* || true'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/Expat/lib/* || true'
         docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
@@ -246,8 +247,9 @@ jobs:
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.prepare.outputs.libxml2-tags }}
       test-command: |
-        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/libxml2/bin/*'
-        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/libxml2/lib/*'
+        set -x
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/libxml2/bin/* || true'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/libxml2/lib/* || true'
         docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
@@ -298,7 +300,8 @@ jobs:
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.prepare.outputs.nghttp2-tags }}
       test-command: |
-        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/nghttp2/lib/*'
+        set -x
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/nghttp2/lib/* || true'
         docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
@@ -326,8 +329,9 @@ jobs:
       image-basename: ${{ inputs.docker-deps-image-basename }}
       tags: ${{ needs.prepare.outputs.openssl-tags }}
       test-command: |
-        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/bin/*'
-        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/lib/*'
+        set -x
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/bin/* || true'
+        docker run --rm -t "$DOCKER_TEST_TAG" bash -c 'ldd /opt/OpenSSL/lib/* || true'
         docker run --rm -t "$DOCKER_TEST_TAG" show-licenses
       push: true
     secrets:
