@@ -189,16 +189,16 @@ cat <<_APR_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Apache_Portable_Runtime.
 }
 _APR_LICENSE_METADATA_
 
-cp ./srclib/apr-util/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime_Utility-LICENSE.txt"
-cp ./srclib/apr-util/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime_Utility-NOTICE.txt"
-cat <<_APR_UTIL_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Apache_Portable_Runtime_Utility.json"
+cp ./srclib/apr-util/LICENSE "${LICENSES_DIR}/Apache_Portable_Runtime_Utility_Library-LICENSE.txt"
+cp ./srclib/apr-util/NOTICE  "${LICENSES_DIR}/Apache_Portable_Runtime_Utility_Library-NOTICE.txt"
+cat <<_APR_UTIL_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Apache_Portable_Runtime_Utility_Library.json"
 {
-    "name": "Apache Portable Runtime Utility",
+    "name": "Apache Portable Runtime Utility Library",
     "url": "https://apr.apache.org/",
     "version": "${APACHE_APRUTIL_VERSION}",
     "filenames": {
-        "LICENSE": "Apache_Portable_Runtime_Utility-LICENSE.txt",
-        "NOTICE": "Apache_Portable_Runtime_Utility-NOTICE.txt"
+        "LICENSE": "Apache_Portable_Runtime_Utility_Library-LICENSE.txt",
+        "NOTICE": "Apache_Portable_Runtime_Utility_Library-NOTICE.txt"
     },
     "file_order": [
         "LICENSE",
