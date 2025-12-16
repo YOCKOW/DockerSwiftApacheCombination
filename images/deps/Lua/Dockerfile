@@ -48,8 +48,20 @@ RUN tar -xzf "${LUA_BIN_LOCAL_BASENAME}" --directory "${LUA_SOURCE_DIR}" --strip
 WORKDIR $LUA_SOURCE_DIR
 RUN make MYCFLAGS="-fPIC" CC=clang CXX=clang++ && make install INSTALL_TOP="$LUA_INSTALL_PREFIX"
 COPY ./tools/extract-lua-license "${LUA_WORKSPACE}/extract-lua-license"
-RUN mkdir -p "$LICENSES_DIR" \
-    && "${LUA_WORKSPACE}/extract-lua-license" ./doc/readme.html >"${LICENSES_DIR}/Lua.html"
+RUN <<__LICENSE_COMMANDS__
+mkdir -p "${LICENSES_DIR}/metadata"
+"${LUA_WORKSPACE}/extract-lua-license" ./doc/readme.html >"${LICENSES_DIR}/Lua.html"
+cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Lua.json"
+{
+    "name": "Lua",
+    "url": "https://lua.org/",
+    "version": "${LUA_VERSION}",
+    "filenames": {
+        "readme.html": "Lua.html"
+    }
+}
+_LICENSE_METADATA_
+__LICENSE_COMMANDS__
 
 ################################################################################
 FROM $BASE_OS_IMAGE

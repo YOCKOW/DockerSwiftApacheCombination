@@ -370,13 +370,17 @@ jobs:
           TEST_COMMAND: ${{ inputs.test-command }}
           DOCKER_TEST_TAG: "${{ needs.prepare.outputs.full_image_name }}:${{ steps.test-tag.outputs.test_tag }}"
         run: |
+          declare -r tmpShFile=$(mktemp)
+          printf '%s' "$TEST_COMMAND" >>"$tmpShFile"
+
           case "$TEST_COMMAND_SHELL" in
           bash)
-            bash -c "$TEST_COMMAND"
+            bash -e "$tmpShFile"
           ;;
           zsh)
-            sudo apt update && sudo apt install zsh
-            zsh -c "$TEST_COMMAND"
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends zsh
+            zsh -e "$tmpShFile"
           ;;
           *)
             echo '::error::Unsupported shell.'
