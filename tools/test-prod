@@ -38,4 +38,5 @@ curl -v --http2 --fail-with-body --retry 3 --retry-delay 2 --retry-all-errors lo
 sudo docker stop swifche-test
 tail -n +1 "$repoDir"/test/web/Logs/*.txt
 
+sudo docker run --rm -t "$dockerImage" cat /licenses/metadata/Swift.json
 sudo docker run --rm -t "$dockerImage" show-licenses

@@ -41,6 +41,7 @@ FROM ubuntu:noble AS swift-license-fetcher
 RUN apt update && apt install -y wget
 
 ARG LICENSES_DIR
+ARG SWIFT_VERSION
 ARG SWIFT_GIT_TAG
 RUN <<__LICENSE_COMMANDS__
 mkdir -p "${LICENSES_DIR}/metadata"
