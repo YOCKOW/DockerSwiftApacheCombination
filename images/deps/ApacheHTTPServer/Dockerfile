@@ -23,7 +23,7 @@ ARG APACHE_DOWNLOAD_WEB_ROOT="https://dlcdn.apache.org"
 ARG APACHE_HTTP_SERVER_KEYS_URL="https://downloads.apache.org/httpd/KEYS"
 ARG APACHE_APR_KEYS_URL="https://downloads.apache.org/apr/KEYS"
 
-ARG EXPAT_VERSION="2.7.3"
+ARG EXPAT_VERSION="2.7.4"
 ARG EXPAT_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:Expat_${EXPAT_VERSION}-${BASE_OS_LABEL}"
 ARG EXPAT_INSTALL_PREFIX="/opt/Expat"
 
@@ -31,7 +31,7 @@ ARG LIBXML2_VERSION="2.15.1"
 ARG LIBXML2_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:libxml2_${LIBXML2_VERSION}-${BASE_OS_LABEL}"
 ARG LIBXML2_INSTALL_PREFIX="/opt/libxml2"
 
-ARG LUA_VERSION="5.4.8"
+ARG LUA_VERSION="5.5.0"
 ARG LUA_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:Lua_${LUA_VERSION}-${BASE_OS_LABEL}"
 ARG LUA_INSTALL_PREFIX="/opt/Lua"
 
@@ -39,7 +39,7 @@ ARG NGHTTP2_VERSION="1.68.0"
 ARG NGHTTP2_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:nghttp2_${NGHTTP2_VERSION}-${BASE_OS_LABEL}"
 ARG NGHTTP2_INSTALL_PREFIX="/opt/nghttp2"
 
-ARG OPENSSL_VERSION="3.6.0"
+ARG OPENSSL_VERSION="3.6.1"
 ARG OPENSSL_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:OpenSSL_${OPENSSL_VERSION}-${BASE_OS_LABEL}"
 ARG OPENSSL_INSTALL_PREFIX="/opt/OpenSSL"
 
@@ -47,7 +47,7 @@ ARG PCRE2_VERSION="10.47"
 ARG PCRE2_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:PCRE2_${PCRE2_VERSION}-${BASE_OS_LABEL}"
 ARG PCRE2_INSTALL_PREFIX="/opt/PCRE2"
 
-ARG ZLIB_VERSION="1.3.1"
+ARG ZLIB_VERSION="1.3.2"
 ARG ZLIB_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:zlib_${ZLIB_VERSION}-${BASE_OS_LABEL}"
 ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 
