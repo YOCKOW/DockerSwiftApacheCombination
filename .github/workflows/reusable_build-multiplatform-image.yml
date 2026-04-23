@@ -157,7 +157,7 @@ jobs:
         env:
           password: ${{ secrets.password }}
         if: ${{ inputs.username != '' && env.password != '' }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.username }}
@@ -217,7 +217,7 @@ jobs:
     runs-on: ${{ matrix.host-os }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Detect 'arch' and 'platform'
         id: arch-and-platform
         run: |
@@ -255,10 +255,10 @@ jobs:
           declare -r generated_uuid=$(uuidgen)
           echo "test_tag=test-${generated_uuid,,}" >>"$GITHUB_OUTPUT"
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Log in to the Container registry
         if: ${{ inputs.username != '' && env.password != '' }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.username }}
@@ -304,7 +304,7 @@ jobs:
           echo "__RESTORE_KEYS__" >>"$GITHUB_OUTPUT"
       - name: Restore Cache (if necessary)
         if: ${{ inputs.cache-file-path != '' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ inputs.cache-file-path }}
           key: ${{ steps.cache-file-keys.outputs.key }}
@@ -340,13 +340,13 @@ jobs:
           "${{ inputs.set-up-script }}"
       - name: Extract metadata (tags, labels) for Docker
         id: metadata
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ needs.prepare.outputs.full_image_name }}
           tags: ${{ steps.tags-for-metadata-action.outputs.tags }}
       - name: Build Image
         id: build-image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
@@ -401,7 +401,7 @@ jobs:
       - name: Push Image
         id: push-image
         if: ${{ inputs.push }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
@@ -427,10 +427,10 @@ jobs:
       password: ${{ secrets.password }}
     steps:
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Log in to the Container registry
         if: ${{ inputs.username != '' && env.password != '' }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ inputs.registry }}
           username: ${{ inputs.username }}
@@ -524,7 +524,7 @@ jobs:
           echo "__RESULTS_JSON__" >>"$GITHUB_OUTPUT"
       - name: Generate summary and determine preferred image tag
         id: summary-and-preferred-image-tag
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           BUILD_CONTEXT: ${{ inputs.context }}
           BUILD_DOCKERFILE: ${{ inputs.dockerfile || './Dockerfile' }}
