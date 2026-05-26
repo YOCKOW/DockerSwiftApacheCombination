@@ -71,10 +71,10 @@ jobs:
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_PROD_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIXES: ${{ steps.define-constants.outputs.tag_name_suffixes }}
-      APACHE_HTTP_SERVER_VERSION: "2.4.66"
+      APACHE_HTTP_SERVER_VERSION: "2.4.67"
       APACHE_APR_VERSION: "1.7.6"
       APACHE_APRUTIL_VERSION: "1.6.3"
-      EXPAT_VERSION: "2.7.5"
+      EXPAT_VERSION: "2.8.1"
       LIBXML2_VERSION: "2.15.3"
       LUA_VERSION: "5.5.0"
       LUA_HASH: "57ccc32bbbd005cab75bcc52444052535af691789dba2b9016d5c50640d68b3d"
@@ -100,7 +100,7 @@ jobs:
         ]
       SWIFT_VERSIONS: |
         [
-          "6.3.1",
+          "6.3.2",
           "6.2.4",
           "6.1.3"
         ]
