@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/ApacheHTTPServer/Dockerfile
+# images/dependencies/ApacheHTTPServer/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.

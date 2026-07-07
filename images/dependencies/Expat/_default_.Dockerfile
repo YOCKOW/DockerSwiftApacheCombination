@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/Expat/Dockerfile
+# images/dependencies/Expat/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.

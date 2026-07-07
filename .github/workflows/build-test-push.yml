@@ -7,7 +7,7 @@ on:
       - "release-*"
       - "push-test-*"
     paths:
-      - "**/Dockerfile"
+      - "**/*.Dockerfile"
       - ".github/workflows/**.yml"
       - "tools/*"
 permissions:
@@ -311,7 +311,7 @@ jobs:
           needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
           fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
         }}
-      dockerfile: ./images/prod/Swift/Dockerfile
+      dockerfile: ./images/products/Swift/${{ matrix.os_label }}.Dockerfile
       build-args: |
         SWIFT_VERSION=${{ matrix.swift-version }}
         SWIFT_GIT_TAG=${{ matrix.swift_git_tag }}

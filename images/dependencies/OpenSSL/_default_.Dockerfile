@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/OpenSSL/Dockerfile
+# images/dependencies/OpenSSL/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.
