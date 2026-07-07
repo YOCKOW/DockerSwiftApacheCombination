@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/libxml2/Dockerfile
+# images/dependencies/libxml2/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.

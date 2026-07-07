@@ -11,14 +11,14 @@ jobs:
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
       if-absent: false
-      context: ./images/test/test-cache
-      dockerfile: ./images/test/test-cache/Dockerfile
+      context: ./images/tests/test-cache
+      dockerfile: ./images/tests/test-cache/Dockerfile
       image-basename: test-cache
       tags: test-cache
-      cache-file-path: ./images/test/test-cache/my-cache.txt
+      cache-file-path: ./images/tests/test-cache/my-cache.txt
       cache-file-key-suffix: key-suffix
       set-up-command: |
-        cd ./images/test/test-cache/
+        cd ./images/tests/test-cache/
         declare -r cacheFilename="my-cache.txt"
 
         if [[ ! -f "${cacheFilename}" ]]; then

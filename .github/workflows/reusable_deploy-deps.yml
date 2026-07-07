@@ -169,7 +169,7 @@ jobs:
           needs.build-pcre2.outputs.all-skipped == 'true' &&
           needs.build-zlib.outputs.all-skipped == 'true'
         }}
-      dockerfile: ./images/deps/ApacheHTTPServer/Dockerfile
+      dockerfile: ./images/dependencies/ApacheHTTPServer/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         BASE_OS_LABEL=${{ inputs.base-os-label }}
@@ -208,7 +208,7 @@ jobs:
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
       if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Expat }}
-      dockerfile: ./images/deps/Expat/Dockerfile
+      dockerfile: ./images/dependencies/Expat/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         EXPAT_VERSION=${{ inputs.expat-version }}
@@ -236,7 +236,7 @@ jobs:
           !fromJson(needs.prepare.outputs.force-push-images-json).libxml2 &&
           needs.build-zlib.outputs.all-skipped == 'true'
         }}
-      dockerfile: ./images/deps/libxml2/Dockerfile
+      dockerfile: ./images/dependencies/libxml2/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         BASE_OS_LABEL=${{ inputs.base-os-label }}
@@ -261,7 +261,7 @@ jobs:
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
       if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Lua }}
-      dockerfile: ./images/deps/Lua/Dockerfile
+      dockerfile: ./images/dependencies/Lua/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         LUA_VERSION=${{ inputs.lua-version }}
@@ -288,7 +288,7 @@ jobs:
           needs.build-openssl.outputs.all-skipped == 'true' &&
           needs.build-zlib.outputs.all-skipped == 'true'
         }}
-      dockerfile: ./images/deps/nghttp2/Dockerfile
+      dockerfile: ./images/dependencies/nghttp2/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         BASE_OS_LABEL=${{ inputs.base-os-label }}
@@ -318,7 +318,7 @@ jobs:
           !fromJson(needs.prepare.outputs.force-push-images-json).OpenSSL &&
           needs.build-zlib.outputs.all-skipped == 'true'
         }}
-      dockerfile: ./images/deps/OpenSSL/Dockerfile
+      dockerfile: ./images/dependencies/OpenSSL/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         BASE_OS_LABEL=${{ inputs.base-os-label }}
@@ -343,7 +343,7 @@ jobs:
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
       if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).PCRE2 }}
-      dockerfile: ./images/deps/PCRE2/Dockerfile
+      dockerfile: ./images/dependencies/PCRE2/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         PCRE2_VERSION=${{ inputs.pcre2-version }}
@@ -362,7 +362,7 @@ jobs:
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
       if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).zlib }}
-      dockerfile: ./images/deps/zlib/Dockerfile
+      dockerfile: ./images/dependencies/zlib/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
         ZLIB_VERSION=${{ inputs.zlib-version }}

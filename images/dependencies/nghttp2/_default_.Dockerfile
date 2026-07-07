@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/nghttp2/Dockerfile
+# images/dependencies/nghttp2/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.

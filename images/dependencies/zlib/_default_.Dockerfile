@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/zlib/Dockerfile
+# images/dependencies/zlib/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.
