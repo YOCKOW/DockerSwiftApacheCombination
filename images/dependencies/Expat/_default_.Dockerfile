@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/Expat/Dockerfile
+# images/dependencies/Expat/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.
@@ -11,7 +11,7 @@
 # Configurable arguments
 ARG BASE_UBUNTU_VERSION="noble"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
-ARG EXPAT_VERSION="2.8.1"
+ARG EXPAT_VERSION="2.8.2"
 ARG EXPAT_INSTALL_PREFIX="/opt/Expat"
 ARG LICENSES_DIR="/licenses"
 

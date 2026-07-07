@@ -1,6 +1,6 @@
 ################################################################################
 #
-# images/deps/PCRE2/Dockerfile
+# images/dependencies/PCRE2/Dockerfile
 #
 # © 2025 YOCKOW.
 #     Licensed under MIT License.
