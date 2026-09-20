@@ -35,6 +35,7 @@ RUN apt-get update \
         clang \
         cmake \
         gnupg2 \
+        libclang-rt-dev \
         ninja-build \
         wget
 RUN mkdir -p "${ZLIB_WORKSPACE}" "${ZLIB_SOURCE_DIR}" "${GNUPGHOME}" \
