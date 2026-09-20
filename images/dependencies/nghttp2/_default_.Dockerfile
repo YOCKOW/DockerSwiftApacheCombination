@@ -44,9 +44,10 @@ ENV NGHTTP2_BIN_LOCAL_BASENAME="nghttp2.tar.gz" \
 ENV NGHTTP2_SOURCE_DIR="${NGHTTP2_WORKSPACE}/nghttp2"
 ENV GNUPGHOME="${NGHTTP2_WORKSPACE}/.gpg"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
         clang \
         cmake \
         gnupg2 \

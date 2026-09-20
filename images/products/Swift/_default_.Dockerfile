@@ -38,7 +38,11 @@ FROM $APACHE_HTTP_SERVER_IMAGE AS apache-http-server-image
 ################################################################################
 FROM ubuntu:resolute AS swift-license-fetcher
 
-RUN apt update && apt install -y wget
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        wget
 
 ARG LICENSES_DIR
 ARG SWIFT_VERSION

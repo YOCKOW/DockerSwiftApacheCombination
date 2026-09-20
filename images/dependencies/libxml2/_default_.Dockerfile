@@ -35,12 +35,13 @@ ENV LIBXML2_BIN_URL="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML2
 ENV LIBXML2_BIN_LOCAL_BASENAME="libxml2.tar.gz"
 ENV LIBXML2_SOURCE_DIR="${LIBXML2_WORKSPACE}/libxml2"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         autoconf \
         automake \
         build-essential \
+        ca-certificates \
         clang \
         libtool \
         pkg-config \

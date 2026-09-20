@@ -28,9 +28,10 @@ ENV PCRE2_BIN_LOCAL_BASENAME="PCRE2.tar.gz"
 ENV PCRE2_SIG_LOCAL_BASENAME="PCRE2.tar.gz.sig"
 ENV GNUPGHOME="${PCRE2_WORKSPACE}/.gpg"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
         clang \
         gnupg2 \
         make \

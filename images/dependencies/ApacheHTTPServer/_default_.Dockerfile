@@ -100,7 +100,8 @@ SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y  --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
         clang \
         gnupg2 \
         libcrypt-dev \
