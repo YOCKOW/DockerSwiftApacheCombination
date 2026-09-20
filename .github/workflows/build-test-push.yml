@@ -73,25 +73,25 @@ jobs:
       DOCKER_TAG_NAME_SUFFIXES: ${{ steps.define-constants.outputs.tag_name_suffixes }}
       APACHE_HTTP_SERVER_VERSION: "2.4.68"
       APACHE_APR_VERSION: "1.7.6"
-      APACHE_APRUTIL_VERSION: "1.6.3"
-      EXPAT_VERSION: "2.8.2"
-      LIBXML2_VERSION: "2.15.3"
-      LUA_VERSION: "5.5.0"
-      LUA_HASH: "57ccc32bbbd005cab75bcc52444052535af691789dba2b9016d5c50640d68b3d"
-      NGHTTP2_VERSION: "1.69.0"
-      OPENSSL_VERSION: "4.0.1"
-      PCRE2_VERSION: "10.47"
+      APACHE_APRUTIL_VERSION: "1.6.5"
+      EXPAT_VERSION: "2.8.4"
+      LIBXML2_VERSION: "2.15.4"
+      LUA_VERSION: "5.5.1"
+      LUA_HASH: "1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce"
+      NGHTTP2_VERSION: "1.70.0"
+      OPENSSL_VERSION: "4.0.2"
+      PCRE2_VERSION: "10.48"
       ZLIB_VERSION: "1.3.2"
       FORCE_PUSH: ${{ steps.determine-force-push.outputs.result }}
       BASE_OS_IMAGES: |
         [
           {
-            "image_name": "ubuntu:noble",
-            "os_label": "noble"
+            "image_name": "ubuntu:resolute",
+            "os_label": "resolute"
           },
           {
-            "image_name": "ubuntu:jammy",
-            "os_label": "jammy"
+            "image_name": "ubuntu:noble",
+            "os_label": "noble"
           },
           {
             "image_name": "debian:bookworm",
@@ -100,13 +100,14 @@ jobs:
         ]
       SWIFT_VERSIONS: |
         [
+          "6.4.0",
           "6.3.3",
-          "6.2.4",
-          "6.1.3"
+          "6.2.4"
         ]
       EXCLUSIONS: |
         [
-          {"swift-version": "6.1.3", "os_label": "bookworm"}
+          {"swift-version": "6.3.3", "os_label": "resolute"},
+          {"swift-version": "6.2.4", "os_label": "resolute"}
         ]
   build-deps:
     needs:

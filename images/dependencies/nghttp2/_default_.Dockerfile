@@ -9,13 +9,13 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
-ARG BASE_OS_LABEL="noble"
-ARG NGHTTP2_VERSION="1.69.0"
+ARG BASE_OS_LABEL="resolute"
+ARG NGHTTP2_VERSION="1.70.0"
 ARG NGHTTP2_INSTALL_PREFIX="/opt/nghttp2"
 ARG LICENSES_DIR="/licenses"
-ARG OPENSSL_VERSION="4.0.1"
+ARG OPENSSL_VERSION="4.0.2"
 ARG OPENSSL_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:OpenSSL_${OPENSSL_VERSION}-${BASE_OS_LABEL}"
 ARG OPENSSL_INSTALL_PREFIX="/opt/OpenSSL"
 ARG ZLIB_VERSION="1.3.2"

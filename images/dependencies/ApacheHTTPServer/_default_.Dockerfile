@@ -9,41 +9,41 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
-ARG BASE_OS_LABEL="noble"
+ARG BASE_OS_LABEL="resolute"
 
 ARG LICENSES_DIR="/licenses"
 
 ARG APACHE_HTTP_SERVER_VERSION="2.4.68"
 ARG APACHE_APR_VERSION="1.7.6"
-ARG APACHE_APRUTIL_VERSION="1.6.3"
+ARG APACHE_APRUTIL_VERSION="1.6.5"
 ARG APACHE_HTTP_SERVER_INSTALL_PREFIX="/opt/ApacheHTTPServer"
 ARG APACHE_DOWNLOAD_WEB_ROOT="https://dlcdn.apache.org"
 ARG APACHE_HTTP_SERVER_KEYS_URL="https://downloads.apache.org/httpd/KEYS"
 ARG APACHE_APR_KEYS_URL="https://downloads.apache.org/apr/KEYS"
 
-ARG EXPAT_VERSION="2.8.2"
+ARG EXPAT_VERSION="2.8.4"
 ARG EXPAT_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:Expat_${EXPAT_VERSION}-${BASE_OS_LABEL}"
 ARG EXPAT_INSTALL_PREFIX="/opt/Expat"
 
-ARG LIBXML2_VERSION="2.15.3"
+ARG LIBXML2_VERSION="2.15.4"
 ARG LIBXML2_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:libxml2_${LIBXML2_VERSION}-${BASE_OS_LABEL}"
 ARG LIBXML2_INSTALL_PREFIX="/opt/libxml2"
 
-ARG LUA_VERSION="5.5.0"
+ARG LUA_VERSION="5.5.1"
 ARG LUA_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:Lua_${LUA_VERSION}-${BASE_OS_LABEL}"
 ARG LUA_INSTALL_PREFIX="/opt/Lua"
 
-ARG NGHTTP2_VERSION="1.69.0"
+ARG NGHTTP2_VERSION="1.70.0"
 ARG NGHTTP2_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:nghttp2_${NGHTTP2_VERSION}-${BASE_OS_LABEL}"
 ARG NGHTTP2_INSTALL_PREFIX="/opt/nghttp2"
 
-ARG OPENSSL_VERSION="4.0.1"
+ARG OPENSSL_VERSION="4.0.2"
 ARG OPENSSL_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:OpenSSL_${OPENSSL_VERSION}-${BASE_OS_LABEL}"
 ARG OPENSSL_INSTALL_PREFIX="/opt/OpenSSL"
 
-ARG PCRE2_VERSION="10.47"
+ARG PCRE2_VERSION="10.48"
 ARG PCRE2_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:PCRE2_${PCRE2_VERSION}-${BASE_OS_LABEL}"
 ARG PCRE2_INSTALL_PREFIX="/opt/PCRE2"
 
@@ -96,11 +96,12 @@ ENV APACHE_HTTP_SERVER_BIN_URL="${APACHE_DOWNLOAD_WEB_ROOT}/httpd/httpd-${APACHE
     GNUPGHOME="${APACHE_WORKSPACE}/.gpg" \
     PCRE_CONFIG="${PCRE2_INSTALL_PREFIX}/bin/pcre2-config"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y  --no-install-recommends \
         clang \
         gnupg2 \
+        libcrypt-dev \
         make \
         wget
 
@@ -220,6 +221,12 @@ ARG OPENSSL_INSTALL_PREFIX
 ARG PCRE2_INSTALL_PREFIX
 ARG ZLIB_INSTALL_PREFIX
 ARG LICENSES_DIR
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libcrypt1
 
 COPY --from=apache-http-server-builder $APACHE_HTTP_SERVER_INSTALL_PREFIX $APACHE_HTTP_SERVER_INSTALL_PREFIX
 COPY --from=apache-http-server-builder $EXPAT_INSTALL_PREFIX $EXPAT_INSTALL_PREFIX

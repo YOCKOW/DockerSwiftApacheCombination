@@ -217,7 +217,7 @@ jobs:
     runs-on: ${{ matrix.host-os }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Detect 'arch' and 'platform'
         id: arch-and-platform
         run: |
@@ -304,7 +304,7 @@ jobs:
           echo "__RESTORE_KEYS__" >>"$GITHUB_OUTPUT"
       - name: Restore Cache (if necessary)
         if: ${{ inputs.cache-file-path != '' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ inputs.cache-file-path }}
           key: ${{ steps.cache-file-keys.outputs.key }}
