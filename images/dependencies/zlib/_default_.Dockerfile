@@ -28,6 +28,8 @@ ENV ZLIB_SIG_LOCAL_BASENAME="zlib.tar.gz.asc"
 ENV ZLIB_SOURCE_DIR="${ZLIB_WORKSPACE}/zlib"
 ENV GNUPGHOME="${ZLIB_WORKSPACE}/.gpg"
 
+SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
+
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
@@ -40,7 +42,7 @@ RUN apt-get update \
         wget
 RUN mkdir -p "${ZLIB_WORKSPACE}" "${ZLIB_SOURCE_DIR}" "${GNUPGHOME}" \
     && chmod 600 "${GNUPGHOME}"
-RUN wget -q -O- 'https://madler.net/madler/pgp.html' | gpg --import
+RUN wget -t 5 -q -O- 'https://madler.net/madler/pgp.html' | gpg --import
 
 WORKDIR $ZLIB_WORKSPACE
 RUN wget -q -O "${ZLIB_BIN_LOCAL_BASENAME}" "${ZLIB_BIN_URL}" \

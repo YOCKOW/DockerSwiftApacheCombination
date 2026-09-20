@@ -110,8 +110,8 @@ RUN apt-get update \
 
 RUN mkdir -p "$APACHE_WORKSPACE" "$APACHE_HTTP_SERVER_SOURCE_DIR" "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
-RUN wget -q -O- "$APACHE_HTTP_SERVER_KEYS_URL" | gpg --import
-RUN wget -q -O- "$APACHE_APR_KEYS_URL" | gpg --import
+RUN wget -t 5 -q -O- "$APACHE_HTTP_SERVER_KEYS_URL" | gpg --import
+RUN wget -t 5 -q -O- "$APACHE_APR_KEYS_URL" | gpg --import
 
 WORKDIR $APACHE_WORKSPACE
 RUN wget -q -O "${APACHE_HTTP_SERVER_BIN_LOCAL_BASENAME}" "${APACHE_HTTP_SERVER_BIN_URL}" \

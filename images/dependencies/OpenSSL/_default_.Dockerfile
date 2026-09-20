@@ -36,6 +36,8 @@ ENV OPENSSL_BIN_LOCAL_BASENAME="openssl.tar.gz" \
 ENV OPENSSL_SOURCE_DIR="${OPENSSL_WORKSPACE}/openssl"
 ENV GNUPGHOME="${OPENSSL_WORKSPACE}/.gpg"
 
+SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
+
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
@@ -48,7 +50,7 @@ RUN apt-get update \
         wget
 RUN mkdir -p "${OPENSSL_WORKSPACE}" "${OPENSSL_SOURCE_DIR}" "${GNUPGHOME}" \
     && chmod 600 "${GNUPGHOME}"
-RUN wget -q -O- 'https://openssl-library.org/source/pubkeys.asc' | gpg --import
+RUN wget -t 5 -q -O- 'https://openssl-library.org/source/pubkeys.asc' | gpg --import
 
 COPY --from=zlib-image "${ZLIB_INSTALL_PREFIX}" "${ZLIB_INSTALL_PREFIX}"
 
