@@ -96,9 +96,12 @@ ENV APACHE_HTTP_SERVER_BIN_URL="${APACHE_DOWNLOAD_WEB_ROOT}/httpd/httpd-${APACHE
     GNUPGHOME="${APACHE_WORKSPACE}/.gpg" \
     PCRE_CONFIG="${PCRE2_INSTALL_PREFIX}/bin/pcre2-config"
 
+SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
+
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y  --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
         clang \
         gnupg2 \
         libcrypt-dev \

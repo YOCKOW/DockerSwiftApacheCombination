@@ -36,12 +36,13 @@ ENV OPENSSL_BIN_LOCAL_BASENAME="openssl.tar.gz" \
 ENV OPENSSL_SOURCE_DIR="${OPENSSL_WORKSPACE}/openssl"
 ENV GNUPGHOME="${OPENSSL_WORKSPACE}/.gpg"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         autoconf \
         automake \
         build-essential \
+        ca-certificates \
         clang \
         perl \
         wget

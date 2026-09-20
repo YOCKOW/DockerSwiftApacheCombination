@@ -28,9 +28,10 @@ ENV ZLIB_SIG_LOCAL_BASENAME="zlib.tar.gz.asc"
 ENV ZLIB_SOURCE_DIR="${ZLIB_WORKSPACE}/zlib"
 ENV GNUPGHOME="${ZLIB_WORKSPACE}/.gpg"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
         clang \
         cmake \
         gnupg2 \

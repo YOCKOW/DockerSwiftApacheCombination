@@ -28,12 +28,13 @@ ENV LUA_BIN_URL="https://lua.org/ftp/lua-${LUA_VERSION}.tar.gz"
 ENV LUA_BIN_LOCAL_BASENAME="Lua.tar.gz"
 ENV LUA_HASH_LOCAL_BASENAME="Lua.tar.gz.hash"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         autoconf \
         automake \
         build-essential \
+        ca-certificates \
         clang \
         wget \
         zsh

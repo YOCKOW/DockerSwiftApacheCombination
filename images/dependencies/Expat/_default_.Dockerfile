@@ -26,9 +26,10 @@ ENV GNUPGHOME="${EXPAT_WORKSPACE}/.gpg"
 ENV EXPAT_BIN_LOCAL_BASENAME="Expat.tar.gz"
 ENV EXPAT_SIG_LOCAL_BASENAME="Expat.tar.gz.asc"
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
         clang \
         cmake \
         gnupg2 \
