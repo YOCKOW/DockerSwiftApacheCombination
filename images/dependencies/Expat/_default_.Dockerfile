@@ -9,7 +9,7 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
 ARG EXPAT_VERSION="2.8.4"
 ARG EXPAT_INSTALL_PREFIX="/opt/Expat"

@@ -9,9 +9,9 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
-ARG BASE_OS_LABEL="noble"
+ARG BASE_OS_LABEL="resolute"
 ARG LIBXML2_VERSION="2.15.4"
 ARG LIBXML2_INSTALL_PREFIX="/opt/libxml2"
 ARG LICENSES_DIR="/licenses"

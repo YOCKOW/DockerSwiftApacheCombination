@@ -9,7 +9,7 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
 ARG PCRE2_VERSION="10.48"
 ARG PCRE2_INSTALL_PREFIX="/opt/PCRE2"

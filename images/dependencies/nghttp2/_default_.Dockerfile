@@ -9,9 +9,9 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
-ARG BASE_OS_LABEL="noble"
+ARG BASE_OS_LABEL="resolute"
 ARG NGHTTP2_VERSION="1.70.0"
 ARG NGHTTP2_INSTALL_PREFIX="/opt/nghttp2"
 ARG LICENSES_DIR="/licenses"

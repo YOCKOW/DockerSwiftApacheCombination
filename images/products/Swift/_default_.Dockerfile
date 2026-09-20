@@ -9,8 +9,8 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
-ARG BASE_OS_LABEL="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
+ARG BASE_OS_LABEL="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
 
 ARG LICENSES_DIR="/licenses"
@@ -27,7 +27,7 @@ ARG OPENSSL_INSTALL_PREFIX="/opt/OpenSSL"
 ARG PCRE2_INSTALL_PREFIX="/opt/PCRE2"
 ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 
-ARG SWIFT_VERSION="6.3.3"
+ARG SWIFT_VERSION="6.4.0"
 ARG SWIFT_GIT_TAG="swift-${SWIFT_VERSION}-RELEASE"
 ARG SWIFT_IMAGE="swift:${SWIFT_VERSION}-${BASE_OS_LABEL}-slim"
 ARG SWIFT_LIB_DIR="/usr/lib/swift/linux"
@@ -36,7 +36,7 @@ ARG SWIFT_LIB_DIR="/usr/lib/swift/linux"
 FROM $APACHE_HTTP_SERVER_IMAGE AS apache-http-server-image
 
 ################################################################################
-FROM ubuntu:noble AS swift-license-fetcher
+FROM ubuntu:resolute AS swift-license-fetcher
 
 RUN apt update && apt install -y wget
 

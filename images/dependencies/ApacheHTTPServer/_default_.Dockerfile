@@ -9,9 +9,9 @@
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="noble"
+ARG BASE_UBUNTU_VERSION="resolute"
 ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
-ARG BASE_OS_LABEL="noble"
+ARG BASE_OS_LABEL="resolute"
 
 ARG LICENSES_DIR="/licenses"
 
