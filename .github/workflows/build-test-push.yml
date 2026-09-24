@@ -222,6 +222,7 @@ jobs:
               const latestOSLabel = labels[0];
               tags[latestSwiftVersion] = {};
               tags[latestSwiftVersion][latestOSLabel] = `latest\n`;
+              tags[latestSwiftVersion][latestOSLabel] += `Swift_${latestSwiftVersion}\n`;
             }
 
             for (const swiftVersion of swiftVersions) {
