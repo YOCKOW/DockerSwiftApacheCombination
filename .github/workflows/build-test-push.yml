@@ -113,6 +113,7 @@ jobs:
     needs:
       - constants
     strategy:
+      fail-fast: false
       matrix:
         include: ${{ fromJson(needs.constants.outputs.BASE_OS_IMAGES) }}
     name: Build Dependencies for ${{ matrix.os_label }}
