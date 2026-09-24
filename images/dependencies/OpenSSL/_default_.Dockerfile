@@ -31,12 +31,11 @@ ARG ZLIB_INSTALL_PREFIX
 ENV OPENSSL_WORKSPACE="/workspace"
 ENV OPENSSL_BIN_URL="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" \
     OPENSSL_SIG_URL="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz.asc"
-ENV OPENSSL_BIN_LOCAL_BASENAME="openssl.tar.gz" \
+ENV OPENSSL_PGP_KEY_LOCAL_BASENAME="openssl.key" \
+    OPENSSL_BIN_LOCAL_BASENAME="openssl.tar.gz" \
     OPENSSL_SIG_LOCAL_BASENAME="openssl.tar.gz.asc"
 ENV OPENSSL_SOURCE_DIR="${OPENSSL_WORKSPACE}/openssl"
 ENV GNUPGHOME="${OPENSSL_WORKSPACE}/.gpg"
-
-SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
 RUN apt-get update \
     && apt-get upgrade -y \
@@ -46,15 +45,17 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         clang \
+        gnupg2 \
         perl \
         wget
 RUN mkdir -p "${OPENSSL_WORKSPACE}" "${OPENSSL_SOURCE_DIR}" "${GNUPGHOME}" \
     && chmod 600 "${GNUPGHOME}"
-RUN wget -t 5 -q -O- 'https://openssl-library.org/source/pubkeys.asc' | gpg --import
 
 COPY --from=zlib-image "${ZLIB_INSTALL_PREFIX}" "${ZLIB_INSTALL_PREFIX}"
 
 WORKDIR $OPENSSL_WORKSPACE
+RUN wget -q -O "${OPENSSL_PGP_KEY_LOCAL_BASENAME}" 'https://openssl-library.org/source/pubkeys.asc' \
+    && gpg --import "${OPENSSL_PGP_KEY_LOCAL_BASENAME}"
 RUN wget -q -O "${OPENSSL_BIN_LOCAL_BASENAME}" "${OPENSSL_BIN_URL}" \
     && wget -q -O "${OPENSSL_SIG_LOCAL_BASENAME}" "${OPENSSL_SIG_URL}"
 RUN gpg --batch --verify "${OPENSSL_SIG_LOCAL_BASENAME}" "${OPENSSL_BIN_LOCAL_BASENAME}" \
