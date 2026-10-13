@@ -12,9 +12,10 @@ See its [Versions](https://github.com/YOCKOW/DockerSwiftApacheCombination/pkgs/c
 
 |              | Swift 6.2.4                   | Swift 6.3.3                   | Swift 6.4.0                   |
 |--------------|-------------------------------|-------------------------------|-------------------------------|
-| Ubuntu 24.04 | `Swift_6.2.4-noble-latest`    | `Swift_6.3.3-noble-latest`    | `Swift_6.4.0-noble-latest`    |
 | Ubuntu 26.04 | n/a                           | n/a                           | `Swift_6.4.0-resolute-latest` |
-| Debian 12.12 | `Swift_6.2.4-bookworm-latest` | `Swift_6.3.3-bookworm-latest` | `Swift_6.4.0-bookworm-latest` |
+| Ubuntu 24.04 | `Swift_6.2.4-noble-latest`    | `Swift_6.3.3-noble-latest`    | `Swift_6.4.0-noble-latest`    |
+| Debian 13    | n/a                           | n/a                           | `Swift_6.4.0-trixie-latest`   |
+| Debian 12    | `Swift_6.2.4-bookworm-latest` | `Swift_6.3.3-bookworm-latest` | `Swift_6.4.0-bookworm-latest` |
 
 
 ## How to use
