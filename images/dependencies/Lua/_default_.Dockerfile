@@ -2,15 +2,16 @@
 #
 # images/dependencies/Lua/Dockerfile
 #
-# © 2025 YOCKOW.
+# © 2025-2026 YOCKOW.
 #     Licensed under MIT License.
 #     See "LICENSE.txt" for more information.
 #
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="resolute"
-ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
+ARG BASE_OS="ubuntu"
+ARG BASE_OS_LABEL="resolute"
+ARG BASE_OS_IMAGE="${BASE_OS}:${BASE_OS_LABEL}"
 ARG LUA_VERSION="5.5.1"
 ARG LUA_HASH="1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce"
 ARG LUA_INSTALL_PREFIX="/opt/Lua"

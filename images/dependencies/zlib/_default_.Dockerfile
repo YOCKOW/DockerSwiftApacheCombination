@@ -2,15 +2,16 @@
 #
 # images/dependencies/zlib/Dockerfile
 #
-# © 2025 YOCKOW.
+# © 2025-2026 YOCKOW.
 #     Licensed under MIT License.
 #     See "LICENSE.txt" for more information.
 #
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="resolute"
-ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
+ARG BASE_OS="ubuntu"
+ARG BASE_OS_LABEL="resolute"
+ARG BASE_OS_IMAGE="${BASE_OS}:${BASE_OS_LABEL}"
 ARG ZLIB_VERSION="1.3.2"
 ARG ZLIB_INSTALL_PREFIX="/opt/zlib"
 ARG LICENSES_DIR="/licenses"

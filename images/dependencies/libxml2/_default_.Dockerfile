@@ -2,16 +2,16 @@
 #
 # images/dependencies/libxml2/Dockerfile
 #
-# © 2025 YOCKOW.
+# © 2025-2026 YOCKOW.
 #     Licensed under MIT License.
 #     See "LICENSE.txt" for more information.
 #
 ################################################################################
 
 # Configurable arguments
-ARG BASE_UBUNTU_VERSION="resolute"
-ARG BASE_OS_IMAGE="ubuntu:${BASE_UBUNTU_VERSION}"
+ARG BASE_OS="ubuntu"
 ARG BASE_OS_LABEL="resolute"
+ARG BASE_OS_IMAGE="${BASE_OS}:${BASE_OS_LABEL}"
 ARG LIBXML2_VERSION="2.15.4"
 ARG LIBXML2_INSTALL_PREFIX="/opt/libxml2"
 ARG LICENSES_DIR="/licenses"
