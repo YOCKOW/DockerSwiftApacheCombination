@@ -10,12 +10,12 @@ See its [Versions](https://github.com/YOCKOW/DockerSwiftApacheCombination/pkgs/c
 
 ### Tag List
 
-|              | Swift 6.2.4                   | Swift 6.3.3                   | Swift 6.4.0                   |
+|              | Swift 6.2.4                   | Swift 6.3.3                   | Swift 6.4.1                   |
 |--------------|-------------------------------|-------------------------------|-------------------------------|
-| Ubuntu 26.04 | n/a                           | n/a                           | `Swift_6.4.0-resolute-latest` |
-| Ubuntu 24.04 | `Swift_6.2.4-noble-latest`    | `Swift_6.3.3-noble-latest`    | `Swift_6.4.0-noble-latest`    |
-| Debian 13    | n/a                           | n/a                           | `Swift_6.4.0-trixie-latest`   |
-| Debian 12    | `Swift_6.2.4-bookworm-latest` | `Swift_6.3.3-bookworm-latest` | `Swift_6.4.0-bookworm-latest` |
+| Ubuntu 26.04 | n/a                           | n/a                           | `Swift_6.4.1-resolute-latest` |
+| Ubuntu 24.04 | `Swift_6.2.4-noble-latest`    | `Swift_6.3.3-noble-latest`    | `Swift_6.4.1-noble-latest`    |
+| Debian 13    | n/a                           | n/a                           | `Swift_6.4.1-trixie-latest`   |
+| Debian 12    | `Swift_6.2.4-bookworm-latest` | `Swift_6.3.3-bookworm-latest` | `Swift_6.4.1-bookworm-latest` |
 
 
 ## How to use
@@ -25,7 +25,7 @@ As a default, [tools/entrypoint](tools/entrypoint) is used as `ENTRYPOINT` progr
 You can run the container image just as an HTTP server:
 
 ```console
-# docker run -it -d --rm -p 60080:80 ghcr.io/yockow/swift-de-cgi:Swift_6.4.0-resolute-latest
+# docker run -it -d --rm -p 60080:80 ghcr.io/yockow/swift-de-cgi:Swift_6.4.1-resolute-latest
 # curl localhost:60080
 <html><body><h1>It works!</h1></body></html>
 ```
@@ -33,7 +33,7 @@ You can run the container image just as an HTTP server:
 You can specify `httpd.conf`:
 
 ```console
-# docker run -it -d --rm -v /path/to/my/web:/home/swifche/web -p 80:80 ghcr.io/yockow/swift-de-cgi:Swift_6.4.0-resolute-latest httpd -f /home/swifche/web/httpd.conf
+# docker run -it -d --rm -v /path/to/my/web:/home/swifche/web -p 80:80 ghcr.io/yockow/swift-de-cgi:Swift_6.4.1-resolute-latest httpd -f /home/swifche/web/httpd.conf
 ```
 
 ### User/Group
