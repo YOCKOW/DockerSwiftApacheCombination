@@ -1,0 +1,101 @@
+#!/usr/bin/env zsh
+
+set -eu
+
+declare -r commandName=$(basename "$0")
+declare -r -a commandArguments=($@)
+declare -r toolsDir=$(cd $(dirname "$0") && pwd -P)
+declare -r repoRootDir=$(dirname "$toolsDir")
+declare -r imagesDir="${repoRootDir}/images"
+declare -r -a gitHubActionsFilePaths=(
+  "${repoRootDir}/.github/workflows/build-test-push.yml"
+)
+declare -a allDockerfilePaths=()
+
+# initialize
+function () {
+  local dockerfilePath
+  for dockerfilePath in "${imagesDir}"/**/*.Dockerfile; do
+    if [[ ! -L "$dockerfilePath" ]]; then
+      allDockerfilePaths=($allDockerfilePaths $dockerfilePath)
+    fi
+  done
+}
+
+# Misc. functions
+######################
+
+function isDarwin() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    function isDarwin() {
+      return 0
+    }
+    return 0
+  else
+    function isDarwin() {
+      return 1
+    }
+    return 1
+  fi
+}
+
+function fatal-error() {
+  local -r message="${1-}"
+  print -P "%F{red}error: %f$message" >&2
+  exit 1
+}
+
+function sed-in-place() {
+  local -r aScript="$1"
+  local -r aFilePath="$2"
+
+  if isDarwin; then
+    sed -i '' -E "$aScript" "$aFilePath"
+  else
+    sed -i -E "$aScript" "$aFilePath"
+  fi
+}
+
+function sed-all-GA-files() {
+  local -r sedScript="$1"
+  local gaPath
+  for gaPath in $gitHubActionsFilePaths; do
+    sed-in-place "$sedScript" "$gaPath"
+  done
+}
+
+function sed-all-dockerfiles() {
+  local -r sedScript="$1"
+  local dockerfilePath
+  for dockerfilePath in $allDockerfilePaths; do
+    sed-in-place "$sedScript" "$dockerfilePath"
+  done
+}
+
+# Commands
+###############
+
+function update-lua-version() {
+  local -r latestLuaInfo="$("$toolsDir"/lua-source-checksum --latest)"
+  if [[ "$latestLuaInfo" =~ ^lua-([0-9]+(\.[0-9]+(\.[0-9]+)?)?)\.tar\.gz[[:space:]]+([0-9A-Fa-f]+)$ ]]; then
+    local -r latestVersion="${match[1]}"
+    local -r latestHash="${match[-1]}"
+
+    sed-all-GA-files 's/LUA_VERSION:[[:space:]]+".*"/LUA_VERSION: "'$latestVersion'"/g'
+    sed-all-GA-files 's/LUA_HASH:[[:space:]]+".*"/LUA_HASH: "'$latestHash'"/g'
+    sed-all-dockerfiles 's/ARG[[:space:]]+LUA_VERSION=".*"/ARG LUA_VERSION="'$latestVersion'"/g'
+    sed-all-dockerfiles 's/ARG[[:space:]]+LUA_HASH=".*"/ARG LUA_HASH="'$latestHash'"/g'
+  else
+    fatal-error "Failed to get the latest version of Lua."
+  fi
+}
+
+case "$commandName" in
+update-lua-version)
+  $commandName $commandArguments
+  ;;
+*)
+  echo "Unexpected command name: ${commandName}" >&2
+  exit 1
+;;
+esac
