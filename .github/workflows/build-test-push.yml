@@ -75,7 +75,7 @@ jobs:
       DOCKER_TAG_NAME_SUFFIXES: ${{ steps.define-constants.outputs.tag_name_suffixes }}
       APACHE_HTTP_SERVER_VERSION: "2.4.69" # https://httpd.apache.org
       APACHE_APR_VERSION: "1.7.6" # https://apr.apache.org
-      APACHE_APRUTIL_VERSION: "1.6.5"
+      APACHE_APRUTIL_VERSION: "1.6.6"
       EXPAT_VERSION: "2.9.0" # https://libexpat.github.io
       LIBXML2_VERSION: "2.15.4" # https://gitlab.gnome.org/GNOME/libxml2/-/releases
       LUA_VERSION: "5.5.1" # https://www.lua.org/download.html
