@@ -99,12 +99,18 @@ function latest-version() {
   local aTagLine
   local tagLineMatched="false"
   for aTagLine in $tagLines; do
-    if [[ "$aTagLine" =~ ^(v(er\.?)?)?[[:space:]]*([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?([+].+)?$ ]]; then
+    if [[ "$aTagLine" =~ ^[^0-9]*([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?$ ]]; then
+      # e.g.)
+      #   1.2.3
+      #   v1.2.3
+      #   openssl-4.1.0
+      #   10.49
+
       tagLineMatched="true"
       currentVersionString="$aTagLine"
-      currentMajorVersion=$(( "${match[3]}" + 0 ))
-      currentMinorVersion=$(( "${match[5]:-0}" + 0 ))
-      currentPatchVersion=$(( "${match[7]:-0}" + 0 ))
+      currentMajorVersion=$(( "${match[1]}" + 0 ))
+      currentMinorVersion=$(( "${match[3]:-0}" + 0 ))
+      currentPatchVersion=$(( "${match[5]:-0}" + 0 ))
     elif [[ "$aTagLine" =~ ^R_([0-9]+)_([0-9]+)_([0-9]+)$ ]]; then # For Expat
       tagLineMatched="true"
       currentVersionString="$aTagLine"
@@ -408,6 +414,16 @@ function update-nghttp2-version() {
     --version-type semver
 }
 
+
+function update-openssl-version() {
+  __update-version \
+    --name "OpenSSL" \
+    --version-key OPENSSL_VERSION \
+    --url https://github.com/openssl/openssl.git \
+    --pattern '^openssl-[0-9]+\.[0-9]+\.[0-9]+$' \
+    --version-type semver
+}
+
 case "$commandName" in
 update-apr-version | \
 update-apr-util-version | \
@@ -415,7 +431,8 @@ update-expat-version | \
 update-httpd-version | \
 update-libxml2-version | \
 update-lua-version | \
-update-nghttp2-version )
+update-nghttp2-version | \
+update-openssl-version )
   $commandName $commandArguments
   ;;
 *)
