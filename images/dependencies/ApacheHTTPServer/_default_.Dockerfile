@@ -35,7 +35,7 @@ ARG LUA_VERSION="5.5.1"
 ARG LUA_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:Lua_${LUA_VERSION}-${BASE_OS_LABEL}"
 ARG LUA_INSTALL_PREFIX="/opt/Lua"
 
-ARG NGHTTP2_VERSION="1.70.0"
+ARG NGHTTP2_VERSION="1.71.0"
 ARG NGHTTP2_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:nghttp2_${NGHTTP2_VERSION}-${BASE_OS_LABEL}"
 ARG NGHTTP2_INSTALL_PREFIX="/opt/nghttp2"
 
