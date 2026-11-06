@@ -99,7 +99,7 @@ function latest-version() {
   local aTagLine
   local tagLineMatched="false"
   for aTagLine in $tagLines; do
-    if [[ "$aTagLine" =~ ^(v(er\.?))?[[:space:]]*([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?([+].+)?$ ]]; then
+    if [[ "$aTagLine" =~ ^(v(er\.?)?)?[[:space:]]*([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?([+].+)?$ ]]; then
       tagLineMatched="true"
       currentVersionString="$aTagLine"
       currentMajorVersion=$(( "${match[3]}" + 0 ))
@@ -371,8 +371,17 @@ function update-httpd-version() {
   __update-version \
     --name "Apache HTTP Server" \
     --version-key APACHE_HTTP_SERVER_VERSION \
-    --pattern https://github.com/apache/httpd.git \
+    --url https://github.com/apache/httpd.git \
     --pattern '^2\.4\.[0-9]+$'
+}
+
+function update-libxml2-version() {
+  __update-version \
+    --name "libxml2" \
+    --version-key LIBXML2_VERSION \
+    --url https://gitlab.gnome.org/GNOME/libxml2.git \
+    --pattern '^v[0-9]' \
+    --version-type semver
 }
 
 function update-lua-version() {
@@ -395,6 +404,7 @@ update-apr-version | \
 update-apr-util-version | \
 update-expat-version | \
 update-httpd-version | \
+update-libxml2-version | \
 update-lua-version)
   $commandName $commandArguments
   ;;
