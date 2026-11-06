@@ -441,6 +441,16 @@ function update-pcre2-version() {
     --version-type semver:major.minor.patch-if-not-zero
 }
 
+
+function update-zlib-version() {
+  __update-version \
+    --name "zlib" \
+    --version-key ZLIB_VERSION \
+    --url https://github.com/madler/zlib.git \
+    --pattern '^v[0-9]+' \
+    --version-type semver:major.minor.patch-if-not-zero
+}
+
 case "$commandName" in
 update-apr-version | \
 update-apr-util-version | \
@@ -450,7 +460,8 @@ update-libxml2-version | \
 update-lua-version | \
 update-nghttp2-version | \
 update-openssl-version | \
-update-pcre2-version )
+update-pcre2-version | \
+update-zlib-version )
   $commandName $commandArguments
   ;;
 *)
