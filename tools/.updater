@@ -399,13 +399,23 @@ function update-lua-version() {
   fi
 }
 
+function update-nghttp2-version() {
+  __update-version \
+    --name "nghttp2" \
+    --version-key NGHTTP2_VERSION \
+    --url https://github.com/nghttp2/nghttp2.git \
+    --pattern '^v[0-9]' \
+    --version-type semver
+}
+
 case "$commandName" in
 update-apr-version | \
 update-apr-util-version | \
 update-expat-version | \
 update-httpd-version | \
 update-libxml2-version | \
-update-lua-version)
+update-lua-version | \
+update-nghttp2-version )
   $commandName $commandArguments
   ;;
 *)
