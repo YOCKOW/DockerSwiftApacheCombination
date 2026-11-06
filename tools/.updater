@@ -25,6 +25,21 @@ function () {
 # Misc. functions
 ######################
 
+function view-warning() {
+  local -r message="${1-Unknown warning.}"
+  print -P "%F{yellow}warning: %f$message" >&2
+}
+
+function view-error() {
+  local -r message="${1-Unknown error.}"
+  print -P "%F{red}error: %f$message" >&2
+}
+
+function fatal-error() {
+  view-error "${1:-}"
+  exit 1
+}
+
 function isDarwin() {
   if [[ "$(uname -s)" == "Darwin" ]]; then
     function isDarwin() {
@@ -39,10 +54,75 @@ function isDarwin() {
   fi
 }
 
-function fatal-error() {
-  local -r message="${1-}"
-  print -P "%F{red}error: %f$message" >&2
-  exit 1
+function latest-version-tag() {
+  local -r -a tagLines=("${(f)1}")
+
+  local latestVersionString="0.0.0"
+  local latestMajorVersion=0
+  local latestMinorVersion=0
+  local latestPatchVersion=0
+
+  local currentVersionString
+  local currentMajorVersion
+  local currentMinorVersion
+  local currentPatchVersion
+
+  local aTagLine
+  for aTagLine in $tagLines; do
+    if [[ "$aTagLine" =~ ^(v(er\.?))?[[:space:]]*([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?([+].+)?$ ]]; then
+      currentVersionString="$aTagLine"
+      currentMajorVersion=$(( "${match[3]}" + 0 ))
+      currentMinorVersion=$(( "${match[5]:-0}" + 0 ))
+      currentPatchVersion=$(( "${match[7]:-0}" + 0 ))
+
+      if [[ $currentMajorVersion -gt $latestMajorVersion ]] || \
+         [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -gt $latestMinorVersion ]] || \
+         [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -eq $latestMinorVersion && $currentPatchVersion -gt $latestPatchVersion ]]
+      then
+        latestVersionString="$currentVersionString"
+        latestMajorVersion=$currentMajorVersion
+        latestMinorVersion=$currentMinorVersion
+        latestPatchVersion=$currentPatchVersion
+      fi
+    fi
+  done
+
+  if [[ $latestMajorVersion -eq 0 && $latestMinorVersion -eq 0 && $latestPatchVersion -eq 0 ]]; then
+    echo "⚠️ Can't detect latest version." >&2
+    return 1
+  fi
+  echo "$latestVersionString"
+}
+
+declare -A __repositories=()
+function tags-of-remote-repository() {
+  local -r repoURL="$1"
+
+  if [[ -z "${__repositories[$repoURL]:-}" ]]; then
+    local -r localRepoPath="$(mktemp -d)"
+    cd "$localRepoPath"
+    git init
+    git remote add origin "$repoURL"
+    __repositories[$repoURL]="$localRepoPath"
+  fi
+
+  cd "${__repositories[$repoURL]}"
+
+  {
+    local tagLine
+    local tagRef
+    local -r lightweightTagRegex='^(.+)\^\{\}$'
+    while IFS= read -r tagLine; do
+      if [[ "$tagLine" =~ refs/tags/(.+)$ ]]; then
+        tagRef="${match[1]}"
+        if [[ "$tagRef" =~ $lightweightTagRegex ]]; then
+          echo "${match[1]}"
+        else
+          echo "$tagRef"
+        fi
+      fi
+    done < <(git ls-remote --tags)
+  } | sort -u
 }
 
 function sed-in-place() {
@@ -72,8 +152,43 @@ function sed-all-dockerfiles() {
   done
 }
 
+function replace-value-for-key-in-all-GA-files() {
+  local -r theValue="$1"
+  local -r theKey="$2"
+  sed-all-GA-files "s/${theKey}:[[:space:]]+\".*\"/${theKey}: \"${theValue}\"/g"
+}
+
+function replace-value-for-key-in-all-dockerfiles() {
+  local -r theValue="$1"
+  local -r theKey="$2"
+  sed-all-dockerfiles "s/ARG[[:space:]]+${theKey}=\".*\"/ARG ${theKey}=\"${theValue}\"/g"
+}
+
+function replace-value-for-key-in-all-files() {
+  local -r theValue="$1"
+  local -r theKey="$2"
+  replace-value-for-key-in-all-GA-files "$theValue" "$theKey"
+  replace-value-for-key-in-all-dockerfiles "$theValue" "$theKey"
+}
+
 # Commands
 ###############
+
+function update-httpd-version() {
+  local -r httpdTags="$(tags-of-remote-repository https://github.com/apache/httpd.git | grep -E "^2\.4")"
+  local -r latestVersionTag=$(latest-version-tag "$httpdTags")
+
+  if [[ -z "$latestVersionTag" ]]; then
+    return 1
+  fi
+
+  if ! [[ "$latestVersionTag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    view-error "Unexpeted tag ($latestVersionTag)."
+    return 1
+  fi
+
+  replace-value-for-key-in-all-files "$latestVersionTag" APACHE_HTTP_SERVER_VERSION
+}
 
 function update-lua-version() {
   local -r latestLuaInfo="$("$toolsDir"/lua-source-checksum --latest)"
@@ -81,16 +196,16 @@ function update-lua-version() {
     local -r latestVersion="${match[1]}"
     local -r latestHash="${match[-1]}"
 
-    sed-all-GA-files 's/LUA_VERSION:[[:space:]]+".*"/LUA_VERSION: "'$latestVersion'"/g'
-    sed-all-GA-files 's/LUA_HASH:[[:space:]]+".*"/LUA_HASH: "'$latestHash'"/g'
-    sed-all-dockerfiles 's/ARG[[:space:]]+LUA_VERSION=".*"/ARG LUA_VERSION="'$latestVersion'"/g'
-    sed-all-dockerfiles 's/ARG[[:space:]]+LUA_HASH=".*"/ARG LUA_HASH="'$latestHash'"/g'
+    replace-value-for-key-in-all-files "$latestVersion" LUA_VERSION
+    replace-value-for-key-in-all-files "$latestHash" LUA_HASH
   else
-    fatal-error "Failed to get the latest version of Lua."
+    view-error "Failed to get the latest version of Lua."
+    return 1
   fi
 }
 
 case "$commandName" in
+update-httpd-version | \
 update-lua-version)
   $commandName $commandArguments
   ;;
