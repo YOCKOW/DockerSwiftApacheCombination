@@ -22,8 +22,21 @@ function () {
   done
 }
 
+declare -A commonOptions=()
+zparseopts -D -E -M -A commonOptions -- -commit
+
+declare doCommit="false"
+if [[ -n "${commonOptions[(i)--commit]}" ]]; then
+  doCommit="true"
+fi
+
 # Misc. functions
 ######################
+
+function view-note() {
+  local -r message="${1-Unknown warning.}"
+  print -P "%F{008}note: %f$message" >&2
+}
 
 function view-warning() {
   local -r message="${1-Unknown warning.}"
@@ -52,6 +65,14 @@ function isDarwin() {
     }
     return 1
   fi
+}
+
+function isTrue() {
+  local -r booleanValue="${1:-false}"
+  if [[ "${(L)booleanValue}" = "true" ]]; then
+    return 0
+  fi
+  return 1
 }
 
 function latest-version-tag() {
@@ -171,6 +192,44 @@ function replace-value-for-key-in-all-files() {
   replace-value-for-key-in-all-dockerfiles "$theValue" "$theKey"
 }
 
+function commit-if-necessary() {
+  if [[ $#@ -lt 1 ]]; then
+    fatal-error "Missing commit message?!"
+  fi
+
+  local -r commitMessage="$1"
+
+  if ! isTrue "$doCommit"; then
+    return 0
+  fi
+
+  cd "$repoRootDir"
+
+  local -a targetFilePaths=()
+  local aPath
+  for aPath in $gitHubActionsFilePaths $allDockerfilePaths; do
+    if [[ "$aPath" = "${repoRootDir}"* ]]; then
+      targetFilePaths=($targetFilePaths ${aPath#${repoRootDir}/})
+    else
+      targetFilePaths=($targetFilePaths $aPath)
+    fi
+  done
+
+  declare gitStatus=""
+  gitStatus=$(git status --short $targetFilePaths)
+
+  if [[ -z "$gitStatus" ]]; then
+    view-note "Nothing to commit."
+    return 0
+  fi
+
+  declare -r uDate=$(date '+%Y/%m/%d %H:%M:%S%z')
+  set -x
+  git add $targetFilePaths
+  git commit --message "$commitMessage"$'\n\n'"(Committed by script at ${uDate}.)"
+  { set +x; } 2>/dev/null
+}
+
 # Commands
 ###############
 
@@ -188,6 +247,7 @@ function update-httpd-version() {
   fi
 
   replace-value-for-key-in-all-files "$latestVersionTag" APACHE_HTTP_SERVER_VERSION
+  commit-if-necessary "Bump Apache HTTP Server version to ${latestVersionTag}."
 }
 
 function update-lua-version() {
@@ -198,6 +258,7 @@ function update-lua-version() {
 
     replace-value-for-key-in-all-files "$latestVersion" LUA_VERSION
     replace-value-for-key-in-all-files "$latestHash" LUA_HASH
+    commit-if-necessary "Bump Lua version to ${latestVersion}."
   else
     view-error "Failed to get the latest version of Lua."
     return 1
