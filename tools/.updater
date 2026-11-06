@@ -109,7 +109,6 @@ function latest-version-tag() {
   done
 
   if [[ $latestMajorVersion -eq 0 && $latestMinorVersion -eq 0 && $latestPatchVersion -eq 0 ]]; then
-    echo "⚠️ Can't detect latest version." >&2
     return 1
   fi
   echo "$latestVersionString"
@@ -230,24 +229,53 @@ function commit-if-necessary() {
   { set +x; } 2>/dev/null
 }
 
+function __update-version() {
+  local -r softwareName="$1"
+  local -r softwareVersionKey="$2"
+  local -r repoURL="$3"
+  local -r expectedVersionPattern="${4:-.+}"
+
+  local -r matchedRemoteTags=$(tags-of-remote-repository "$repoURL" | grep -E "$expectedVersionPattern")
+  if [[ -z "$matchedRemoteTags" ]]; then
+    view-error "No matched tags found for ${softwareName}."
+    return 1
+  fi
+
+  local -r latestVersionTag=$(latest-version-tag "$matchedRemoteTags")
+  if [[ -z "$latestVersionTag" ]]; then
+    view-error "Failed to determine the latest version of ${softwareName}."
+    return 1
+  fi
+
+  replace-value-for-key-in-all-files "$latestVersionTag" "$softwareVersionKey"
+  commit-if-necessary "Bump version of ${softwareName} to ${latestVersionTag}."
+}
+
 # Commands
 ###############
 
+function update-apr-version() {
+  __update-version \
+    "Apache Portable Runtime Library (APR)" \
+    APACHE_APR_VERSION \
+    https://github.com/apache/apr.git \
+    '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
+}
+
+function update-apr-util-version() {
+  __update-version \
+    "Apache Portable Runtime Utility Library" \
+    APACHE_APRUTIL_VERSION \
+    https://github.com/apache/apr-util.git \
+    '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
+}
+
 function update-httpd-version() {
-  local -r httpdTags="$(tags-of-remote-repository https://github.com/apache/httpd.git | grep -E "^2\.4")"
-  local -r latestVersionTag=$(latest-version-tag "$httpdTags")
-
-  if [[ -z "$latestVersionTag" ]]; then
-    return 1
-  fi
-
-  if ! [[ "$latestVersionTag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    view-error "Unexpeted tag ($latestVersionTag)."
-    return 1
-  fi
-
-  replace-value-for-key-in-all-files "$latestVersionTag" APACHE_HTTP_SERVER_VERSION
-  commit-if-necessary "Bump Apache HTTP Server version to ${latestVersionTag}."
+  __update-version \
+    "Apache HTTP Server" \
+    APACHE_HTTP_SERVER_VERSION \
+    https://github.com/apache/httpd.git \
+    '^2\.4\.[0-9]+$'
 }
 
 function update-lua-version() {
@@ -266,6 +294,8 @@ function update-lua-version() {
 }
 
 case "$commandName" in
+update-apr-version | \
+update-apr-util-version | \
 update-httpd-version | \
 update-lua-version)
   $commandName $commandArguments
