@@ -75,7 +75,15 @@ function isTrue() {
   return 1
 }
 
-function latest-version-tag() {
+function latest-version() {
+  local -A versionOptions
+  zparseopts -D -E -M -A versionOptions -- -type:
+
+  local versionType="tag"
+  if [[ -n "${versionOptions[(i)--type]}" ]]; then
+    versionType="${(L)versionOptions[--type]#=}"
+  fi
+
   local -r -a tagLines=("${(f)1}")
 
   local latestVersionString="0.0.0"
@@ -89,13 +97,25 @@ function latest-version-tag() {
   local currentPatchVersion
 
   local aTagLine
+  local tagLineMatched="false"
   for aTagLine in $tagLines; do
     if [[ "$aTagLine" =~ ^(v(er\.?))?[[:space:]]*([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?([+].+)?$ ]]; then
+      tagLineMatched="true"
       currentVersionString="$aTagLine"
       currentMajorVersion=$(( "${match[3]}" + 0 ))
       currentMinorVersion=$(( "${match[5]:-0}" + 0 ))
       currentPatchVersion=$(( "${match[7]:-0}" + 0 ))
+    elif [[ "$aTagLine" =~ ^R_([0-9]+)_([0-9]+)_([0-9]+)$ ]]; then # For Expat
+      tagLineMatched="true"
+      currentVersionString="$aTagLine"
+      currentMajorVersion=$(( "${match[1]}" + 0 ))
+      currentMinorVersion=$(( "${match[2]}" + 0 ))
+      currentPatchVersion=$(( "${match[3]}" + 0 ))
+    else
+      tagLineMatched="false"
+    fi
 
+    if isTrue "$tagLineMatched"; then
       if [[ $currentMajorVersion -gt $latestMajorVersion ]] || \
          [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -gt $latestMinorVersion ]] || \
          [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -eq $latestMinorVersion && $currentPatchVersion -gt $latestPatchVersion ]]
@@ -111,7 +131,44 @@ function latest-version-tag() {
   if [[ $latestMajorVersion -eq 0 && $latestMinorVersion -eq 0 && $latestPatchVersion -eq 0 ]]; then
     return 1
   fi
-  echo "$latestVersionString"
+
+  case "${versionType}" in
+  semver* )
+    local -r semverPrefix=""
+    local -r semverStyle="major.minor.patch"
+    if [[ -n "${versionType#semver}" ]]; then
+      if [[ "${versionType}" =~ ^semver:([^0-9]*)(major(\.minor(\.patch)?)?)$ ]]; then
+        semverPrefix="${match[1]:-}"
+        semverStyle="${match[2]}"
+      else
+        view-warning "Unrecognizable SemVer style: ${versionType#semver}"
+      fi
+    fi
+
+    printf "%s" "$semverPrefix"
+
+    case "$semverStyle" in
+    major )
+      echo "${latestMajorVersion}"
+      ;;
+    major.minor )
+      echo "${latestMajorVersion}.${latestMinorVersion}"
+      ;;
+    major.minor.patch )
+      echo "${latestMajorVersion}.${latestMinorVersion}.${latestPatchVersion}"
+      ;;
+    * )
+      fatal-error "Unexpected SemVer style?! $semverStyle"
+      ;;
+    esac
+    ;;
+  tag | *)
+    if [[ "$versionType" != "tag" ]]; then
+      view-warning "Unknown version type: $versionType"
+    fi
+    echo "$latestVersionString"
+    ;;
+  esac
 }
 
 declare -A __repositories=()
@@ -234,10 +291,37 @@ function commit-if-necessary() {
 }
 
 function __update-version() {
-  local -r softwareName="$1"
-  local -r softwareVersionKey="$2"
-  local -r repoURL="$3"
-  local -r expectedVersionPattern="${4:-.+}"
+  local -A updateOptions
+  zparseopts -D -E -M -A updateOptions -- \
+    -name: \
+    -version-key: \
+    -repository-url: -repo-url:=-repository-url -url:=-repository-url \
+    -expected-version-pattern: -pattern:=-expected-version-pattern \
+    -version-type:
+
+  if [[ -z "${updateOptions[(i)--name]}" ]]; then
+    fatal-error "Missing Software name?!"
+  fi
+  if [[ -z "${updateOptions[(i)--version-key]}" ]]; then
+    fatal-error "Missing version key?!"
+  fi
+  if [[ -z "${updateOptions[(i)--repository-url]}" ]]; then
+    fatal-error "Missing repository URL?!"
+  fi
+  
+  local -r softwareName="${updateOptions[--name]#=}"
+  local -r softwareVersionKey="${updateOptions[--version-key]#=}"
+  local -r repoURL="${updateOptions[--repository-url]#=}"
+  
+  local expectedVersionPattern=".+"
+  if [[ -n "${updateOptions[(i)--expected-version-pattern]}" ]]; then
+    expectedVersionPattern="${updateOptions[--expected-version-pattern]#=}"
+  fi
+
+  local versionType="tag"
+  if [[ -n "${updateOptions[(i)--version-type]}" ]]; then
+    versionType="${updateOptions[--version-type]#=}"
+  fi
 
   local -r matchedRemoteTags=$(tags-of-remote-repository "$repoURL" | grep -E "$expectedVersionPattern")
   if [[ -z "$matchedRemoteTags" ]]; then
@@ -245,14 +329,14 @@ function __update-version() {
     return 1
   fi
 
-  local -r latestVersionTag=$(latest-version-tag "$matchedRemoteTags")
-  if [[ -z "$latestVersionTag" ]]; then
+  local -r latestVersion=$(latest-version "$matchedRemoteTags" --type "$versionType")
+  if [[ -z "$latestVersion" ]]; then
     view-error "Failed to determine the latest version of ${softwareName}."
     return 1
   fi
 
-  replace-value-for-key-in-all-files "$latestVersionTag" "$softwareVersionKey"
-  commit-if-necessary "Bump version of ${softwareName} to ${latestVersionTag}."
+  replace-value-for-key-in-all-files "$latestVersion" "$softwareVersionKey"
+  commit-if-necessary "Bump version of ${softwareName} to ${latestVersion}."
 }
 
 # Commands
@@ -260,26 +344,35 @@ function __update-version() {
 
 function update-apr-version() {
   __update-version \
-    "Apache Portable Runtime Library (APR)" \
-    APACHE_APR_VERSION \
-    https://github.com/apache/apr.git \
-    '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
+    --name "Apache Portable Runtime Library (APR)" \
+    --version-key APACHE_APR_VERSION \
+    --url https://github.com/apache/apr.git \
+    --pattern '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
 }
 
 function update-apr-util-version() {
   __update-version \
-    "Apache Portable Runtime Utility Library" \
-    APACHE_APRUTIL_VERSION \
-    https://github.com/apache/apr-util.git \
-    '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
+    --name "Apache Portable Runtime Utility Library" \
+    --version-key APACHE_APRUTIL_VERSION \
+    --url https://github.com/apache/apr-util.git \
+    --pattern '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
+}
+
+function update-expat-version() {
+  __update-version \
+    --name "Expat" \
+    --version-key EXPAT_VERSION \
+    --url https://github.com/libexpat/libexpat.git \
+    --pattern '^R_[0-9]+_[0-9]+_[0-9]+$' \
+    --version-type semver
 }
 
 function update-httpd-version() {
   __update-version \
-    "Apache HTTP Server" \
-    APACHE_HTTP_SERVER_VERSION \
-    https://github.com/apache/httpd.git \
-    '^2\.4\.[0-9]+$'
+    --name "Apache HTTP Server" \
+    --version-key APACHE_HTTP_SERVER_VERSION \
+    --pattern https://github.com/apache/httpd.git \
+    --pattern '^2\.4\.[0-9]+$'
 }
 
 function update-lua-version() {
@@ -300,6 +393,7 @@ function update-lua-version() {
 case "$commandName" in
 update-apr-version | \
 update-apr-util-version | \
+update-expat-version | \
 update-httpd-version | \
 update-lua-version)
   $commandName $commandArguments
