@@ -99,18 +99,18 @@ function latest-version() {
   local aTagLine
   local tagLineMatched="false"
   for aTagLine in $tagLines; do
-    if [[ "$aTagLine" =~ ^[^0-9]*([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?$ ]]; then
+    if [[ "$aTagLine" =~ ^(v|ver\.?|.+[-])?([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?$ ]]; then
       # e.g.)
       #   1.2.3
       #   v1.2.3
       #   openssl-4.1.0
-      #   10.49
+      #   pcre2-10.49
 
       tagLineMatched="true"
       currentVersionString="$aTagLine"
-      currentMajorVersion=$(( "${match[1]}" + 0 ))
-      currentMinorVersion=$(( "${match[3]:-0}" + 0 ))
-      currentPatchVersion=$(( "${match[5]:-0}" + 0 ))
+      currentMajorVersion=$(( "${match[2]}" + 0 ))
+      currentMinorVersion=$(( "${match[4]:-0}" + 0 ))
+      currentPatchVersion=$(( "${match[6]:-0}" + 0 ))
     elif [[ "$aTagLine" =~ ^R_([0-9]+)_([0-9]+)_([0-9]+)$ ]]; then # For Expat
       tagLineMatched="true"
       currentVersionString="$aTagLine"
@@ -140,10 +140,10 @@ function latest-version() {
 
   case "${versionType}" in
   semver* )
-    local -r semverPrefix=""
-    local -r semverStyle="major.minor.patch"
+    local semverPrefix=""
+    local semverStyle="major.minor.patch"
     if [[ -n "${versionType#semver}" ]]; then
-      if [[ "${versionType}" =~ ^semver:([^0-9]*)(major(\.minor(\.patch)?)?)$ ]]; then
+      if [[ "${versionType}" =~ ^semver:([^0-9]*)(major(\.minor(\.patch(-if-not-zero)?)?))$ ]]; then
         semverPrefix="${match[1]:-}"
         semverStyle="${match[2]}"
       else
@@ -162,6 +162,13 @@ function latest-version() {
       ;;
     major.minor.patch )
       echo "${latestMajorVersion}.${latestMinorVersion}.${latestPatchVersion}"
+      ;;
+    major.minor.patch-if-not-zero )
+      if [[ $latestPatchVersion -eq 0 ]]; then
+        echo "${latestMajorVersion}.${latestMinorVersion}"
+      else
+        echo "${latestMajorVersion}.${latestMinorVersion}.${latestPatchVersion}"
+      fi
       ;;
     * )
       fatal-error "Unexpected SemVer style?! $semverStyle"
@@ -424,6 +431,16 @@ function update-openssl-version() {
     --version-type semver
 }
 
+
+function update-pcre2-version() {
+  __update-version \
+    --name "PCRE2" \
+    --version-key PCRE2_VERSION \
+    --url https://github.com/PCRE2Project/pcre2.git \
+    --pattern '^pcre2-[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+    --version-type semver:major.minor.patch-if-not-zero
+}
+
 case "$commandName" in
 update-apr-version | \
 update-apr-util-version | \
@@ -432,7 +449,8 @@ update-httpd-version | \
 update-libxml2-version | \
 update-lua-version | \
 update-nghttp2-version | \
-update-openssl-version )
+update-openssl-version | \
+update-pcre2-version )
   $commandName $commandArguments
   ;;
 *)
