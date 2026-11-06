@@ -150,9 +150,13 @@ function sed-in-place() {
   local -r aFilePath="$2"
 
   if isDarwin; then
+    set -x
     sed -i '' -E "$aScript" "$aFilePath"
+    { set +x; } 2>/dev/null
   else
+    set -x
     sed -i -E "$aScript" "$aFilePath"
+    { set +x; } 2>/dev/null
   fi
 }
 
