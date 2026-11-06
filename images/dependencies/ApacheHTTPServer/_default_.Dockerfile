@@ -23,7 +23,7 @@ ARG APACHE_DOWNLOAD_WEB_ROOT="https://dlcdn.apache.org"
 ARG APACHE_HTTP_SERVER_KEYS_URL="https://downloads.apache.org/httpd/KEYS"
 ARG APACHE_APR_KEYS_URL="https://downloads.apache.org/apr/KEYS"
 
-ARG EXPAT_VERSION="2.9.0"
+ARG EXPAT_VERSION="2.10.0"
 ARG EXPAT_IMAGE="ghcr.io/yockow/swift-de-cgi-deps:Expat_${EXPAT_VERSION}-${BASE_OS_LABEL}"
 ARG EXPAT_INSTALL_PREFIX="/opt/Expat"
 

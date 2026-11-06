@@ -76,7 +76,7 @@ jobs:
       APACHE_HTTP_SERVER_VERSION: "2.4.69" # https://httpd.apache.org
       APACHE_APR_VERSION: "1.7.6" # https://apr.apache.org
       APACHE_APRUTIL_VERSION: "1.6.6"
-      EXPAT_VERSION: "2.9.0" # https://libexpat.github.io
+      EXPAT_VERSION: "2.10.0" # https://libexpat.github.io
       LIBXML2_VERSION: "2.15.4" # https://gitlab.gnome.org/GNOME/libxml2/-/releases
       LUA_VERSION: "5.5.1" # https://www.lua.org/download.html
       LUA_HASH: "1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce"
