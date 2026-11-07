@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+
+set -eu
+
+declare -r arg1=${1:-}
+declare listMode="all" # Expected values: all, specific, latest
+
+if [[ "$arg1" =~ ^(--)?latest$ ]]; then
+  listMode="latest"
+elif [[ "$arg1" =~ ^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$ ]]; then
+  listMode="specific"
+elif [[ -n "$arg1" ]]; then
+  echo "⚠️ Ignoring unrecognizable option(s): ${@}" >&2
+fi
+
+declare -r sourceListHTMLFilePath=$(mktemp)
+curl --silent --fail-with-body --location "https://www.lua.org/ftp/" --output "$sourceListHTMLFilePath"
+
+declare -r checksumListFilePath=$(mktemp)
+xmllint --html \
+  --xpath '//td[@class="name"]/a/text() | //td[@class="sum"]/text()' \
+  "$sourceListHTMLFilePath" | \
+  paste -d ' ' - - >"$checksumListFilePath"
+
+function __extract-specific-version() {
+  local -r specifiedVersion="$1"
+  local versionRegex='[0-9]+(\.[0-9]+(\.[0-9]+)?)?'
+  if [[ "$specifiedVersion" =~ ^[0-9]+$ ]]; then
+    versionRegex="${specifiedVersion}"'(\.0(\.0)?)?'
+  elif [[ "$specifiedVersion" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    versionRegex="$(echo "$specifiedVersion" | sed 's|\.|\\.|g')"'(\.0)?'
+  elif [[ "$specifiedVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    versionRegex="$(echo "$specifiedVersion" | sed 's|\.|\\.|g')"
+  else
+    echo "Unsupported version string." >&2
+    exit 1
+  fi
+
+  local -r theLine=$(
+    cat "$checksumListFilePath" | \
+    grep -E '^lua-'$versionRegex'\.tar\.gz[[:space:]]+[0-9A-Fa-f]+$' | \
+    head -n 1
+  )
+
+  if [[ -z "$theLine" ]]; then
+    echo "⚠️ No matched version." >&2
+    return 1
+  fi
+  echo "$theLine"
+}
+
+function __detect-latest-version() {
+  local latestVersionString="0.0.0"
+  local latestMajorVersion=0
+  local latestMinorVersion=0
+  local latestPatchVersion=0
+
+  local checksumLine
+  local currentVersionString
+  local currentMajorVersion
+  local currentMinorVersion
+  local currentPatchVersion
+  while IFS= read -r checksumLine; do
+    if [[ "$checksumLine" =~ ^lua-(([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?)\.tar\.gz ]]; then
+      currentVersionString="${BASH_REMATCH[1]}"
+      currentMajorVersion=$(( "${BASH_REMATCH[2]}" + 0 ))
+      currentMinorVersion=$(( "${BASH_REMATCH[4]:-0}" + 0 ))
+      currentPatchVersion=$(( "${BASH_REMATCH[6]:-0}" + 0 ))
+
+      if [[ $currentMajorVersion -gt $latestMajorVersion ]] || \
+         [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -gt $latestMinorVersion ]] || \
+         [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -eq $latestMinorVersion && $currentPatchVersion -gt $latestPatchVersion ]]
+      then
+        latestVersionString="$currentVersionString"
+        latestMajorVersion=$currentMajorVersion
+        latestMinorVersion=$currentMinorVersion
+        latestPatchVersion=$currentPatchVersion
+      fi
+    fi
+  done < <(cat "$checksumListFilePath")
+
+  if [[ $latestMajorVersion -eq 0 && $latestMinorVersion -eq 0 && $latestPatchVersion -eq 0 ]]; then
+    echo "⚠️ Can't detect latest version." >&2
+    return 1
+  fi
+  echo "$latestVersionString"
+}
+
+case "${listMode}" in
+all)
+  cat "$checksumListFilePath"
+  ;;
+specific)
+  __extract-specific-version "$arg1"
+  ;;
+latest)
+  declare -r detectedLatestVersion=$(__detect-latest-version)
+  if [[ -z "$detectedLatestVersion" ]]; then
+    exit 1
+  fi
+  __extract-specific-version "$detectedLatestVersion"
+  ;;
+*)
+  echo "🐛 Unexpected mode?!" >&2
+  exit 1
+esac

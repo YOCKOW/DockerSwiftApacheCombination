@@ -1,0 +1,497 @@
+#!/usr/bin/env zsh
+
+set -eu
+
+declare -r commandName=$(basename "$0")
+declare -r -a commandArguments=($@)
+declare -r toolsDir=$(cd $(dirname "$0") && pwd -P)
+declare -r repoRootDir=$(dirname "$toolsDir")
+declare -r imagesDir="${repoRootDir}/images"
+declare -r -a gitHubActionsFilePaths=(
+  "${repoRootDir}/.github/workflows/build-test-push.yml"
+)
+declare -a allDockerfilePaths=()
+
+# initialize
+function () {
+  local dockerfilePath
+  for dockerfilePath in "${imagesDir}"/**/*.Dockerfile; do
+    if [[ ! -L "$dockerfilePath" ]]; then
+      allDockerfilePaths=($allDockerfilePaths $dockerfilePath)
+    fi
+  done
+}
+
+declare -A commonOptions=()
+zparseopts -D -E -M -A commonOptions -- -commit
+
+declare doCommit="false"
+if [[ -n "${commonOptions[(i)--commit]}" ]]; then
+  doCommit="true"
+fi
+
+# Misc. functions
+######################
+
+function view-note() {
+  local -r message="${1-Unknown warning.}"
+  print -P "%F{008}note: %f$message" >&2
+}
+
+function view-warning() {
+  local -r message="${1-Unknown warning.}"
+  print -P "%F{yellow}warning: %f$message" >&2
+}
+
+function view-error() {
+  local -r message="${1-Unknown error.}"
+  print -P "%F{red}error: %f$message" >&2
+}
+
+function fatal-error() {
+  view-error "${1:-}"
+  exit 1
+}
+
+function isDarwin() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    function isDarwin() {
+      return 0
+    }
+    return 0
+  else
+    function isDarwin() {
+      return 1
+    }
+    return 1
+  fi
+}
+
+function isTrue() {
+  local -r booleanValue="${1:-false}"
+  if [[ "${(L)booleanValue}" = "true" ]]; then
+    return 0
+  fi
+  return 1
+}
+
+function latest-version() {
+  local -A versionOptions
+  zparseopts -D -E -M -A versionOptions -- -type:
+
+  local versionType="tag"
+  if [[ -n "${versionOptions[(i)--type]}" ]]; then
+    versionType="${(L)versionOptions[--type]#=}"
+  fi
+
+  local -r -a tagLines=("${(f)1}")
+
+  local latestVersionString="0.0.0"
+  local latestMajorVersion=0
+  local latestMinorVersion=0
+  local latestPatchVersion=0
+
+  local currentVersionString
+  local currentMajorVersion
+  local currentMinorVersion
+  local currentPatchVersion
+
+  local aTagLine
+  local tagLineMatched="false"
+  for aTagLine in $tagLines; do
+    if [[ "$aTagLine" =~ ^(v|ver\.?|.+[-])?([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?$ ]]; then
+      # e.g.)
+      #   1.2.3
+      #   v1.2.3
+      #   openssl-4.1.0
+      #   pcre2-10.49
+
+      tagLineMatched="true"
+      currentVersionString="$aTagLine"
+      currentMajorVersion=$(( "${match[2]}" + 0 ))
+      currentMinorVersion=$(( "${match[4]:-0}" + 0 ))
+      currentPatchVersion=$(( "${match[6]:-0}" + 0 ))
+    elif [[ "$aTagLine" =~ ^R_([0-9]+)_([0-9]+)_([0-9]+)$ ]]; then # For Expat
+      tagLineMatched="true"
+      currentVersionString="$aTagLine"
+      currentMajorVersion=$(( "${match[1]}" + 0 ))
+      currentMinorVersion=$(( "${match[2]}" + 0 ))
+      currentPatchVersion=$(( "${match[3]}" + 0 ))
+    else
+      tagLineMatched="false"
+    fi
+
+    if isTrue "$tagLineMatched"; then
+      if [[ $currentMajorVersion -gt $latestMajorVersion ]] || \
+         [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -gt $latestMinorVersion ]] || \
+         [[ $currentMajorVersion -eq $latestMajorVersion && $currentMinorVersion -eq $latestMinorVersion && $currentPatchVersion -gt $latestPatchVersion ]]
+      then
+        latestVersionString="$currentVersionString"
+        latestMajorVersion=$currentMajorVersion
+        latestMinorVersion=$currentMinorVersion
+        latestPatchVersion=$currentPatchVersion
+      fi
+    fi
+  done
+
+  if [[ $latestMajorVersion -eq 0 && $latestMinorVersion -eq 0 && $latestPatchVersion -eq 0 ]]; then
+    return 1
+  fi
+
+  case "${versionType}" in
+  semver* )
+    local semverPrefix=""
+    local semverStyle="major.minor.patch"
+    if [[ -n "${versionType#semver}" ]]; then
+      if [[ "${versionType}" =~ ^semver:([^0-9]*)(major(\.minor(\.patch(-if-not-zero)?)?))$ ]]; then
+        semverPrefix="${match[1]:-}"
+        semverStyle="${match[2]}"
+      else
+        view-warning "Unrecognizable SemVer style: ${versionType#semver}"
+      fi
+    fi
+
+    printf "%s" "$semverPrefix"
+
+    case "$semverStyle" in
+    major )
+      echo "${latestMajorVersion}"
+      ;;
+    major.minor )
+      echo "${latestMajorVersion}.${latestMinorVersion}"
+      ;;
+    major.minor.patch )
+      echo "${latestMajorVersion}.${latestMinorVersion}.${latestPatchVersion}"
+      ;;
+    major.minor.patch-if-not-zero )
+      if [[ $latestPatchVersion -eq 0 ]]; then
+        echo "${latestMajorVersion}.${latestMinorVersion}"
+      else
+        echo "${latestMajorVersion}.${latestMinorVersion}.${latestPatchVersion}"
+      fi
+      ;;
+    * )
+      fatal-error "Unexpected SemVer style?! $semverStyle"
+      ;;
+    esac
+    ;;
+  tag | *)
+    if [[ "$versionType" != "tag" ]]; then
+      view-warning "Unknown version type: $versionType"
+    fi
+    echo "$latestVersionString"
+    ;;
+  esac
+}
+
+declare -A __repositories=()
+function tags-of-remote-repository() {
+  local -r repoURL="$1"
+
+  if [[ -z "${__repositories[$repoURL]:-}" ]]; then
+    local -r localRepoPath="$(mktemp -d)"
+    cd "$localRepoPath"
+    git init
+    git remote add origin "$repoURL"
+    __repositories[$repoURL]="$localRepoPath"
+  fi
+
+  cd "${__repositories[$repoURL]}"
+
+  {
+    local tagLine
+    local tagRef
+    local -r lightweightTagRegex='^(.+)\^\{\}$'
+    while IFS= read -r tagLine; do
+      if [[ "$tagLine" =~ refs/tags/(.+)$ ]]; then
+        tagRef="${match[1]}"
+        if [[ "$tagRef" =~ $lightweightTagRegex ]]; then
+          echo "${match[1]}"
+        else
+          echo "$tagRef"
+        fi
+      fi
+    done < <(git ls-remote --tags)
+  } | sort -u
+}
+
+function __clear-all-repositories() {
+  local repoURL
+  local localRepoPath
+  for repoURL localRepoPath in "${(@kv)__repositories}"; do
+    __repositories[$repoURL]=""
+    rm -rf $localRepoPath
+  done
+}
+
+function sed-in-place() {
+  local -r aScript="$1"
+  local -r aFilePath="$2"
+
+  if isDarwin; then
+    set -x
+    sed -i '' -E "$aScript" "$aFilePath"
+    { set +x; } 2>/dev/null
+  else
+    set -x
+    sed -i -E "$aScript" "$aFilePath"
+    { set +x; } 2>/dev/null
+  fi
+}
+
+function sed-all-GA-files() {
+  local -r sedScript="$1"
+  local gaPath
+  for gaPath in $gitHubActionsFilePaths; do
+    sed-in-place "$sedScript" "$gaPath"
+  done
+}
+
+function sed-all-dockerfiles() {
+  local -r sedScript="$1"
+  local dockerfilePath
+  for dockerfilePath in $allDockerfilePaths; do
+    sed-in-place "$sedScript" "$dockerfilePath"
+  done
+}
+
+function replace-value-for-key-in-all-GA-files() {
+  local -r theValue="$1"
+  local -r theKey="$2"
+  sed-all-GA-files "s/${theKey}:[[:space:]]+\".*\"/${theKey}: \"${theValue}\"/g"
+}
+
+function replace-value-for-key-in-all-dockerfiles() {
+  local -r theValue="$1"
+  local -r theKey="$2"
+  sed-all-dockerfiles "s/ARG[[:space:]]+${theKey}=\".*\"/ARG ${theKey}=\"${theValue}\"/g"
+}
+
+function replace-value-for-key-in-all-files() {
+  local -r theValue="$1"
+  local -r theKey="$2"
+  replace-value-for-key-in-all-GA-files "$theValue" "$theKey"
+  replace-value-for-key-in-all-dockerfiles "$theValue" "$theKey"
+}
+
+function commit-if-necessary() {
+  if [[ $#@ -lt 1 ]]; then
+    fatal-error "Missing commit message?!"
+  fi
+
+  local -r commitMessage="$1"
+
+  if ! isTrue "$doCommit"; then
+    return 0
+  fi
+
+  cd "$repoRootDir"
+
+  local -a targetFilePaths=()
+  local aPath
+  for aPath in $gitHubActionsFilePaths $allDockerfilePaths; do
+    if [[ "$aPath" = "${repoRootDir}"* ]]; then
+      targetFilePaths=($targetFilePaths ${aPath#${repoRootDir}/})
+    else
+      targetFilePaths=($targetFilePaths $aPath)
+    fi
+  done
+
+  declare gitStatus=""
+  gitStatus=$(git status --short $targetFilePaths)
+
+  if [[ -z "$gitStatus" ]]; then
+    view-note "Nothing to commit."
+    return 0
+  fi
+
+  declare -r uDate=$(date '+%Y/%m/%d %H:%M:%S%z')
+  set -x
+  git add $targetFilePaths
+  git commit --message "$commitMessage"$'\n\n'"(Committed by script at ${uDate}.)"
+  { set +x; } 2>/dev/null
+}
+
+function __update-version() {
+  local -A updateOptions
+  zparseopts -D -E -M -A updateOptions -- \
+    -name: \
+    -version-key: \
+    -repository-url: -repo-url:=-repository-url -url:=-repository-url \
+    -expected-version-pattern: -pattern:=-expected-version-pattern \
+    -version-type:
+
+  if [[ -z "${updateOptions[(i)--name]}" ]]; then
+    fatal-error "Missing Software name?!"
+  fi
+  if [[ -z "${updateOptions[(i)--version-key]}" ]]; then
+    fatal-error "Missing version key?!"
+  fi
+  if [[ -z "${updateOptions[(i)--repository-url]}" ]]; then
+    fatal-error "Missing repository URL?!"
+  fi
+  
+  local -r softwareName="${updateOptions[--name]#=}"
+  local -r softwareVersionKey="${updateOptions[--version-key]#=}"
+  local -r repoURL="${updateOptions[--repository-url]#=}"
+  
+  local expectedVersionPattern=".+"
+  if [[ -n "${updateOptions[(i)--expected-version-pattern]}" ]]; then
+    expectedVersionPattern="${updateOptions[--expected-version-pattern]#=}"
+  fi
+
+  local versionType="tag"
+  if [[ -n "${updateOptions[(i)--version-type]}" ]]; then
+    versionType="${updateOptions[--version-type]#=}"
+  fi
+
+  local -r matchedRemoteTags=$(tags-of-remote-repository "$repoURL" | grep -E "$expectedVersionPattern")
+  if [[ -z "$matchedRemoteTags" ]]; then
+    view-error "No matched tags found for ${softwareName}."
+    return 1
+  fi
+
+  local -r latestVersion=$(latest-version "$matchedRemoteTags" --type "$versionType")
+  if [[ -z "$latestVersion" ]]; then
+    view-error "Failed to determine the latest version of ${softwareName}."
+    return 1
+  fi
+
+  replace-value-for-key-in-all-files "$latestVersion" "$softwareVersionKey"
+  commit-if-necessary "Bump version of ${softwareName} to ${latestVersion}."
+}
+
+# Commands
+###############
+
+function update-all-dependencies() {
+  update-apr-version
+  update-apr-util-version
+  update-expat-version
+  update-httpd-version
+  update-libxml2-version
+  update-lua-version
+  update-nghttp2-version
+  update-openssl-version
+  update-pcre2-version
+  update-zlib-version
+}
+
+function update-apr-version() {
+  __update-version \
+    --name "Apache Portable Runtime Library (APR)" \
+    --version-key APACHE_APR_VERSION \
+    --url https://github.com/apache/apr.git \
+    --pattern '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
+}
+
+function update-apr-util-version() {
+  __update-version \
+    --name "Apache Portable Runtime Utility Library" \
+    --version-key APACHE_APRUTIL_VERSION \
+    --url https://github.com/apache/apr-util.git \
+    --pattern '^[0-9]+(\.[0-9]+(\.[0-9]+)?)?$'
+}
+
+function update-expat-version() {
+  __update-version \
+    --name "Expat" \
+    --version-key EXPAT_VERSION \
+    --url https://github.com/libexpat/libexpat.git \
+    --pattern '^R_[0-9]+_[0-9]+_[0-9]+$' \
+    --version-type semver
+}
+
+function update-httpd-version() {
+  __update-version \
+    --name "Apache HTTP Server" \
+    --version-key APACHE_HTTP_SERVER_VERSION \
+    --url https://github.com/apache/httpd.git \
+    --pattern '^2\.4\.[0-9]+$'
+}
+
+function update-libxml2-version() {
+  __update-version \
+    --name "libxml2" \
+    --version-key LIBXML2_VERSION \
+    --url https://gitlab.gnome.org/GNOME/libxml2.git \
+    --pattern '^v[0-9]' \
+    --version-type semver
+}
+
+function update-lua-version() {
+  local -r latestLuaInfo="$("$toolsDir"/lua-source-checksum --latest)"
+  if [[ "$latestLuaInfo" =~ ^lua-([0-9]+(\.[0-9]+(\.[0-9]+)?)?)\.tar\.gz[[:space:]]+([0-9A-Fa-f]+)$ ]]; then
+    local -r latestVersion="${match[1]}"
+    local -r latestHash="${match[-1]}"
+
+    replace-value-for-key-in-all-files "$latestVersion" LUA_VERSION
+    replace-value-for-key-in-all-files "$latestHash" LUA_HASH
+    commit-if-necessary "Bump Lua version to ${latestVersion}."
+  else
+    view-error "Failed to get the latest version of Lua."
+    return 1
+  fi
+}
+
+function update-nghttp2-version() {
+  __update-version \
+    --name "nghttp2" \
+    --version-key NGHTTP2_VERSION \
+    --url https://github.com/nghttp2/nghttp2.git \
+    --pattern '^v[0-9]' \
+    --version-type semver
+}
+
+
+function update-openssl-version() {
+  __update-version \
+    --name "OpenSSL" \
+    --version-key OPENSSL_VERSION \
+    --url https://github.com/openssl/openssl.git \
+    --pattern '^openssl-[0-9]+\.[0-9]+\.[0-9]+$' \
+    --version-type semver
+}
+
+
+function update-pcre2-version() {
+  __update-version \
+    --name "PCRE2" \
+    --version-key PCRE2_VERSION \
+    --url https://github.com/PCRE2Project/pcre2.git \
+    --pattern '^pcre2-[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+    --version-type semver:major.minor.patch-if-not-zero
+}
+
+
+function update-zlib-version() {
+  __update-version \
+    --name "zlib" \
+    --version-key ZLIB_VERSION \
+    --url https://github.com/madler/zlib.git \
+    --pattern '^v[0-9]+' \
+    --version-type semver:major.minor.patch-if-not-zero
+}
+
+case "$commandName" in
+update-all-dependencies | \
+update-apr-version | \
+update-apr-util-version | \
+update-expat-version | \
+update-httpd-version | \
+update-libxml2-version | \
+update-lua-version | \
+update-nghttp2-version | \
+update-openssl-version | \
+update-pcre2-version | \
+update-zlib-version )
+  $commandName $commandArguments
+  ;;
+*)
+  echo "Unexpected command name: ${commandName}" >&2
+  exit 1
+;;
+esac
+
+set +e
+__clear-all-repositories
