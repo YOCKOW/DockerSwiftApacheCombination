@@ -14,7 +14,7 @@ elif [[ -n "$arg1" ]]; then
 fi
 
 declare -r sourceListHTMLFilePath=$(mktemp)
-curl --silent --fail-with-body --location "https://www.lua.org/ftp/" --output "$sourceListHTMLFilePath"
+curl --retry 12 --silent --fail-with-body --location "https://www.lua.org/ftp/" --output "$sourceListHTMLFilePath"
 
 declare -r checksumListFilePath=$(mktemp)
 xmllint --html \

@@ -42,7 +42,7 @@ RUN apt-get update \
 RUN mkdir -p "$LUA_SOURCE_DIR"
 
 WORKDIR $LUA_WORKSPACE
-RUN wget -q -O "$LUA_BIN_LOCAL_BASENAME" "$LUA_BIN_URL"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "$LUA_BIN_LOCAL_BASENAME" "$LUA_BIN_URL"
 RUN echo "${LUA_HASH} ${LUA_BIN_LOCAL_BASENAME}" >"$LUA_HASH_LOCAL_BASENAME"
 RUN sha256sum --check "$LUA_HASH_LOCAL_BASENAME"
 RUN tar -xzf "${LUA_BIN_LOCAL_BASENAME}" --directory "${LUA_SOURCE_DIR}" --strip-components=1
