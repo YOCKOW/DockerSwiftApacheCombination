@@ -44,9 +44,9 @@ RUN mkdir -p "${ZLIB_WORKSPACE}" "${ZLIB_SOURCE_DIR}" "${GNUPGHOME}" \
     && chmod 600 "${GNUPGHOME}"
 
 WORKDIR $ZLIB_WORKSPACE
-RUN wget -q -O "${ZLIB_PGP_KEY_LOCAL_BASENAME}" 'https://madler.net/madler/pgp.html' \
+RUN wget  --tries=12 --retry-connrefused --waitretry=5 -q -O "${ZLIB_PGP_KEY_LOCAL_BASENAME}" 'https://madler.net/madler/pgp.html' \
     && gpg --import "${ZLIB_PGP_KEY_LOCAL_BASENAME}"
-RUN wget -q -O "${ZLIB_BIN_LOCAL_BASENAME}" "${ZLIB_BIN_URL}" \
+RUN wget  --tries=12 --retry-connrefused --waitretry=5 -q -O "${ZLIB_BIN_LOCAL_BASENAME}" "${ZLIB_BIN_URL}" \
     && wget -q -O "${ZLIB_SIG_LOCAL_BASENAME}" "${ZLIB_SIG_URL}"
 RUN gpg --batch --verify "${ZLIB_SIG_LOCAL_BASENAME}" "${ZLIB_BIN_LOCAL_BASENAME}"
 RUN tar -xzf "${ZLIB_BIN_LOCAL_BASENAME}" --directory "${ZLIB_SOURCE_DIR}" --strip-components=1
