@@ -59,8 +59,8 @@ RUN mkdir -p "$NGHTTP2_WORKSPACE" "$NGHTTP2_SOURCE_DIR" "$GNUPGHOME" \
 RUN gpg --keyserver keyserver.ubuntu.com --recv-key 5339A2BE82E07DEC
 
 WORKDIR $NGHTTP2_WORKSPACE
-RUN wget -q -O "${NGHTTP2_BIN_LOCAL_BASENAME}" "${NGHTTP2_BIN_URL}" \
-    && wget -q -O "${NGHTTP2_SIG_LOCAL_BASENAME}" "$NGHTTP2_SIG_URL"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${NGHTTP2_BIN_LOCAL_BASENAME}" "${NGHTTP2_BIN_URL}" \
+    && wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${NGHTTP2_SIG_LOCAL_BASENAME}" "$NGHTTP2_SIG_URL"
 RUN gpg --batch --verify "${NGHTTP2_SIG_LOCAL_BASENAME}" "${NGHTTP2_BIN_LOCAL_BASENAME}" \
     && tar -xzf "${NGHTTP2_BIN_LOCAL_BASENAME}" --directory "$NGHTTP2_SOURCE_DIR" --strip-components=1
 

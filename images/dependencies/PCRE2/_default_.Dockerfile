@@ -43,8 +43,8 @@ RUN mkdir -p "${PCRE2_WORKSPACE}" "${PCRE2_SOURCE_DIR}" "${GNUPGHOME}" \
 RUN gpg --keyserver keyserver.ubuntu.com --recv-key 45F68D54BBE23FB3039B46E59766E084FB0F43D8 A95536204A3BB489715231282A98E77EB6F24CA8
 
 WORKDIR $PCRE2_WORKSPACE
-RUN wget -q -O "${PCRE2_BIN_LOCAL_BASENAME}" "${PCRE2_BIN_URL}" \
-    && wget -q -O "${PCRE2_SIG_LOCAL_BASENAME}" "${PCRE2_SIG_URL}"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${PCRE2_BIN_LOCAL_BASENAME}" "${PCRE2_BIN_URL}" \
+    && wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${PCRE2_SIG_LOCAL_BASENAME}" "${PCRE2_SIG_URL}"
 RUN gpg --batch --verify "${PCRE2_SIG_LOCAL_BASENAME}" "${PCRE2_BIN_LOCAL_BASENAME}"
 RUN tar -xzf "${PCRE2_BIN_LOCAL_BASENAME}" --directory "${PCRE2_SOURCE_DIR}" --strip-components=1
 

@@ -54,10 +54,10 @@ RUN mkdir -p "${OPENSSL_WORKSPACE}" "${OPENSSL_SOURCE_DIR}" "${GNUPGHOME}" \
 COPY --from=zlib-image "${ZLIB_INSTALL_PREFIX}" "${ZLIB_INSTALL_PREFIX}"
 
 WORKDIR $OPENSSL_WORKSPACE
-RUN wget -q -O "${OPENSSL_PGP_KEY_LOCAL_BASENAME}" 'https://openssl-library.org/source/pubkeys.asc' \
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${OPENSSL_PGP_KEY_LOCAL_BASENAME}" 'https://openssl-library.org/source/pubkeys.asc' \
     && gpg --import "${OPENSSL_PGP_KEY_LOCAL_BASENAME}"
-RUN wget -q -O "${OPENSSL_BIN_LOCAL_BASENAME}" "${OPENSSL_BIN_URL}" \
-    && wget -q -O "${OPENSSL_SIG_LOCAL_BASENAME}" "${OPENSSL_SIG_URL}"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${OPENSSL_BIN_LOCAL_BASENAME}" "${OPENSSL_BIN_URL}" \
+    && wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${OPENSSL_SIG_LOCAL_BASENAME}" "${OPENSSL_SIG_URL}"
 RUN gpg --batch --verify "${OPENSSL_SIG_LOCAL_BASENAME}" "${OPENSSL_BIN_LOCAL_BASENAME}" \
     && tar -xzf "${OPENSSL_BIN_LOCAL_BASENAME}" --directory "${OPENSSL_SOURCE_DIR}" --strip-components=1
 

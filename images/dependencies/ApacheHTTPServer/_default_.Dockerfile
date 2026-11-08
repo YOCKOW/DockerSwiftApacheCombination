@@ -112,23 +112,23 @@ RUN mkdir -p "$APACHE_WORKSPACE" "$APACHE_HTTP_SERVER_SOURCE_DIR" "$GNUPGHOME" \
     && chmod 600 "$GNUPGHOME"
 
 WORKDIR $APACHE_WORKSPACE
-RUN wget -q -O "${APACHE_HTTP_SERVER_PGP_KEY_LOCAL_BASENAME}" "$APACHE_HTTP_SERVER_KEYS_URL" \
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_HTTP_SERVER_PGP_KEY_LOCAL_BASENAME}" "$APACHE_HTTP_SERVER_KEYS_URL" \
     && gpg --import "${APACHE_HTTP_SERVER_PGP_KEY_LOCAL_BASENAME}"
-RUN wget -q -O "${APACHE_APR_PGP_KEY_LOCAL_BASENAME}" "$APACHE_APR_KEYS_URL" \
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_APR_PGP_KEY_LOCAL_BASENAME}" "$APACHE_APR_KEYS_URL" \
     && gpg --import "${APACHE_APR_PGP_KEY_LOCAL_BASENAME}"
-RUN wget -q -O "${APACHE_HTTP_SERVER_BIN_LOCAL_BASENAME}" "${APACHE_HTTP_SERVER_BIN_URL}" \
-    && wget -q -O "${APACHE_HTTP_SERVER_SIG_LOCAL_BASENAME}" "${APACHE_HTTP_SERVER_SIG_URL}"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_HTTP_SERVER_BIN_LOCAL_BASENAME}" "${APACHE_HTTP_SERVER_BIN_URL}" \
+    && wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_HTTP_SERVER_SIG_LOCAL_BASENAME}" "${APACHE_HTTP_SERVER_SIG_URL}"
 RUN gpg --batch --verify "${APACHE_HTTP_SERVER_SIG_LOCAL_BASENAME}" "${APACHE_HTTP_SERVER_BIN_LOCAL_BASENAME}" \
     && tar -xzf "${APACHE_HTTP_SERVER_BIN_LOCAL_BASENAME}" --directory "${APACHE_HTTP_SERVER_SOURCE_DIR}" --strip-components=1
 
-RUN wget -q -O "${APACHE_APR_BIN_LOCAL_BASENAME}" "${APACHE_APR_BIN_URL}" \
-    && wget -q -O "${APACHE_APR_SIG_LOCAL_BASENAME}" "${APACHE_APR_SIG_URL}"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_APR_BIN_LOCAL_BASENAME}" "${APACHE_APR_BIN_URL}" \
+    && wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_APR_SIG_LOCAL_BASENAME}" "${APACHE_APR_SIG_URL}"
 RUN gpg --batch --verify "${APACHE_APR_SIG_LOCAL_BASENAME}" "${APACHE_APR_BIN_LOCAL_BASENAME}" \
     && mkdir -p "${APACHE_HTTP_SERVER_SOURCE_DIR}/srclib/apr" \
     && tar -xzf "${APACHE_APR_BIN_LOCAL_BASENAME}" --directory "${APACHE_HTTP_SERVER_SOURCE_DIR}/srclib/apr" --strip-components=1
 
-RUN wget -q -O "${APACHE_APRUTIL_BIN_LOCAL_BASENAME}" "${APACHE_APRUTIL_BIN_URL}" \
-    && wget -q -O "${APACHE_APRUTIL_SIG_LOCAL_BASENAME}" "${APACHE_APRUTIL_SIG_URL}"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_APRUTIL_BIN_LOCAL_BASENAME}" "${APACHE_APRUTIL_BIN_URL}" \
+    && wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${APACHE_APRUTIL_SIG_LOCAL_BASENAME}" "${APACHE_APRUTIL_SIG_URL}"
 RUN gpg --batch --verify "${APACHE_APRUTIL_SIG_LOCAL_BASENAME}" "${APACHE_APRUTIL_BIN_LOCAL_BASENAME}" \
     && mkdir -p "${APACHE_HTTP_SERVER_SOURCE_DIR}/srclib/apr-util" \
     && tar -xzf "${APACHE_APRUTIL_BIN_LOCAL_BASENAME}" --directory "${APACHE_HTTP_SERVER_SOURCE_DIR}/srclib/apr-util" --strip-components=1
