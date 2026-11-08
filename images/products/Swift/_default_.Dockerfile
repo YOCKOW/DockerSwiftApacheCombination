@@ -49,7 +49,7 @@ ARG SWIFT_VERSION
 ARG SWIFT_GIT_TAG
 RUN <<__LICENSE_COMMANDS__
 mkdir -p "${LICENSES_DIR}/metadata"
-wget -q -O "${LICENSES_DIR}/Swift.txt" \
+wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${LICENSES_DIR}/Swift.txt" \
        "https://raw.githubusercontent.com/swiftlang/swift/refs/tags/${SWIFT_GIT_TAG}/LICENSE.txt"
 cat <<_LICENSE_METADATA_ >"${LICENSES_DIR}/metadata/Swift.json"
 {

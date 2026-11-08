@@ -42,8 +42,8 @@ RUN mkdir -p "$EXPAT_WORKSPACE" "$EXPAT_SOURCE_DIR" "$GNUPGHOME" \
 RUN gpg --keyserver keyserver.ubuntu.com --recv-key 1F9B0E909AF37285
 
 WORKDIR $EXPAT_WORKSPACE
-RUN wget -q -O "${EXPAT_BIN_LOCAL_BASENAME}" "https://github.com/libexpat/libexpat/releases/download/R_$(echo "$EXPAT_VERSION" | sed 's/\./_/g')/expat-${EXPAT_VERSION}.tar.gz" \
-    && wget -q -O "${EXPAT_SIG_LOCAL_BASENAME}" "https://github.com/libexpat/libexpat/releases/download/R_$(echo "$EXPAT_VERSION" | sed 's/\./_/g')/expat-${EXPAT_VERSION}.tar.gz.asc"
+RUN wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${EXPAT_BIN_LOCAL_BASENAME}" "https://github.com/libexpat/libexpat/releases/download/R_$(echo "$EXPAT_VERSION" | sed 's/\./_/g')/expat-${EXPAT_VERSION}.tar.gz" \
+    && wget --tries=12 --retry-connrefused --waitretry=5 -q -O "${EXPAT_SIG_LOCAL_BASENAME}" "https://github.com/libexpat/libexpat/releases/download/R_$(echo "$EXPAT_VERSION" | sed 's/\./_/g')/expat-${EXPAT_VERSION}.tar.gz.asc"
 RUN gpg --batch --verify "$EXPAT_SIG_LOCAL_BASENAME" "${EXPAT_BIN_LOCAL_BASENAME}"
 RUN tar -xzf "${EXPAT_BIN_LOCAL_BASENAME}" --directory "${EXPAT_SOURCE_DIR}" --strip-components=1
 
