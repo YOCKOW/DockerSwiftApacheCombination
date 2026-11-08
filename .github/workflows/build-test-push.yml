@@ -17,6 +17,9 @@ permissions:
   id-token: write
 env:
   LATEST_BRANCH: main
+  DEFAULT_SWIFT_VERSION: "6.4.2"
+  DEFAULT_OS_IMAGE_NAME: "ubuntu:resolute"
+  DEFAULT_OS_LABEL: "resolute"
 jobs:
   constants:
     name: Set Global Constants
@@ -88,8 +91,8 @@ jobs:
       BASE_OS_IMAGES: |
         [
           {
-            "image_name": "ubuntu:resolute",
-            "os_label": "resolute"
+            "image_name": "${{ env.DEFAULT_OS_IMAGE_NAME }}",
+            "os_label": "${{ env.DEFAULT_OS_LABEL }}"
           },
           {
             "image_name": "ubuntu:noble",
@@ -106,7 +109,7 @@ jobs:
         ]
       SWIFT_VERSIONS: |
         [
-          "6.4.2",
+          "${{ env.DEFAULT_SWIFT_VERSION }}",
           "6.3.3",
           "6.2.4"
         ]
@@ -224,8 +227,8 @@ jobs:
               process.env.REF_TYPE == 'branch' &&
               process.env.REF_NAME == process.env.LATEST_BRANCH
             ) {
-              const latestSwiftVersion = swiftVersions[0];
-              const latestOSLabel = labels[0];
+              const latestSwiftVersion = process.env.DEFAULT_SWIFT_VERSION;
+              const latestOSLabel = process.env.DEFAULT_OS_LABEL;
               tags[latestSwiftVersion] = {};
               tags[latestSwiftVersion][latestOSLabel] = `latest\n`;
               tags[latestSwiftVersion][latestOSLabel] += `Swift_${latestSwiftVersion}\n`;

@@ -6,9 +6,11 @@ declare -r commandName=$(basename "$0")
 declare -r -a commandArguments=($@)
 declare -r toolsDir=$(cd $(dirname "$0") && pwd -P)
 declare -r repoRootDir=$(dirname "$toolsDir")
+declare -r readmeFilePath="${repoRootDir}/README.md"
 declare -r imagesDir="${repoRootDir}/images"
+declare -r mainGitHubActionsFilePath="${repoRootDir}/.github/workflows/build-test-push.yml"
 declare -r -a gitHubActionsFilePaths=(
-  "${repoRootDir}/.github/workflows/build-test-push.yml"
+  "$mainGitHubActionsFilePath"
 )
 declare -a allDockerfilePaths=()
 
@@ -464,6 +466,32 @@ function update-pcre2-version() {
 }
 
 
+declare -r __defaultSwiftVersionKey="DEFAULT_SWIFT_VERSION"
+declare -r __defaultSwiftVersionLineRegex='^[[:space:]]+'"$__defaultSwiftVersionKey"':[[:space:]]*"([0-9]+\.[0-9]+(\.[0-9]+)?)"$'
+function __current-default-swift-version() {
+  local -r defaultSwiftVersionLine=$(cat "$mainGitHubActionsFilePath" | grep -E "$__defaultSwiftVersionLineRegex")
+  if [[ "$defaultSwiftVersionLine" =~ $__defaultSwiftVersionLineRegex ]]; then
+    echo "${match[1]}"
+  else
+    fatal-error "Can't detect current default Swift version."
+  fi
+}
+function update-swift-version() {
+  if [[ $#@ -lt 1 ]]; then
+    fatal-error "Swift version must be specified."
+  fi
+
+  local -r newSwiftVersion="$1"
+  local currentDefaultSwiftVersion
+  currentDefaultSwiftVersion=$(__current-default-swift-version)
+
+  sed-in-place 's/(Swift[_[:space:]]+)'$currentDefaultSwiftVersion'/\1'$newSwiftVersion'/g' "$readmeFilePath"
+  replace-value-for-key-in-all-GA-files "$newSwiftVersion" "$__defaultSwiftVersionKey"
+  replace-value-for-key-in-all-dockerfiles "$newSwiftVersion" SWIFT_VERSION
+  commit-if-necessary "Bump version of Swift to ${newSwiftVersion}."
+}
+
+
 function update-zlib-version() {
   __update-version \
     --name "zlib" \
@@ -484,6 +512,7 @@ update-lua-version | \
 update-nghttp2-version | \
 update-openssl-version | \
 update-pcre2-version | \
+update-swift-version | \
 update-zlib-version )
   $commandName $commandArguments
   ;;
