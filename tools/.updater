@@ -291,7 +291,7 @@ function commit-if-necessary() {
 
   local -a targetFilePaths=()
   local aPath
-  for aPath in $gitHubActionsFilePaths $allDockerfilePaths; do
+  for aPath in $readmeFilePath $gitHubActionsFilePaths $allDockerfilePaths; do
     if [[ "$aPath" = "${repoRootDir}"* ]]; then
       targetFilePaths=($targetFilePaths ${aPath#${repoRootDir}/})
     else
