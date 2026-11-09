@@ -1,0 +1,111 @@
+name: Auto-update
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch: {} # Enable to run manually
+permissions:
+  contents: write
+  pull-requests: write
+env:
+  MAIN_BRANCH: main
+  BASE_BRANCH: development
+  AUTO_UPDATE_BRANCH_PREFIX: auto-update-
+  GIT_REMOTE_NAME: origin
+jobs:
+  auto-update:
+    name: Auto-update
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y git zsh
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Create Token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - name: Generate Environment Variables
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          declare -r jobUUID=$(uuidgen)
+          declare -r appUserID="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+
+          echo "JOB_UUID=$jobUUID" >>"$GITHUB_ENV"
+          echo "JOB_DATE=$(date '+%Y-%m-%d %H:%M:%S%z')" >>"$GITHUB_ENV"
+          echo "AUTO_UPDATE_BRANCH=${AUTO_UPDATE_BRANCH_PREFIX}${jobUUID}" >>"$GITHUB_ENV"
+          echo "GIT_USER_NAME=${APP_SLUG}[bot]" >>"$GITHUB_ENV"
+          echo "GIT_USER_EMAIL=${appUserID}+${APP_SLUG}[bot]@users.noreply.github.com" >>"$GITHUB_ENV"
+      - name: Configure git
+        run: |
+          set -x
+          git config --local user.name "${GIT_USER_NAME}"
+          git config --local user.email "${GIT_USER_EMAIL}"
+      - name: Update dependencies on `${{ env.BASE_BRANCH }}` branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: zsh {0}
+        run: |
+          set -eu
+
+          declare stalePRs=""
+          stalePRs="$(gh pr list --state open --search "base:${BASE_BRANCH} head:${AUTO_UPDATE_BRANCH_PREFIX}" --json url --jq '.[].url')"
+
+          declare aURL
+          for aURL in ${(f)stalePRs}; do
+            echo "::notice::Closing stale PR: ${aURL}"
+            gh pr close "$aURL"
+          done
+
+          git fetch "${GIT_REMOTE_NAME}" "${MAIN_BRANCH}"
+          git fetch "${GIT_REMOTE_NAME}" "${BASE_BRANCH}"
+          git checkout "${GIT_REMOTE_NAME}/${BASE_BRANCH}"
+          git checkout -b "${AUTO_UPDATE_BRANCH}"
+          git merge "${GIT_REMOTE_NAME}/${MAIN_BRANCH}"
+
+          ./tools/update-all-dependencies --commit
+
+          declare updateSummary=""
+          updateSummary=$(git diff --shortstat "${GIT_REMOTE_NAME}/${BASE_BRANCH}..HEAD")
+
+          if [[ -z "$updateSummary" ]]; then
+            echo "::notice::'${GIT_REMOTE_NAME}/${BASE_BRANCH}' is up-to-date."
+            exit 0
+          fi
+
+          git push --set-upstream "${GIT_REMOTE_NAME}" "${AUTO_UPDATE_BRANCH}:${AUTO_UPDATE_BRANCH}"
+
+          declare -r prTitle="Update dependencies. (${JOB_DATE})"
+          declare -r prBody="This PR was created automatically."$'\n\n'"$updateSummary"$'\n\n'"- Job UUID: ${JOB_UUID}"$'\n'"- Date: ${JOB_DATE}"
+
+          declare newPRURL=""
+          newPRURL="$(gh pr create --base "$BASE_BRANCH" --head "$AUTO_UPDATE_BRANCH" --title "$prTitle" --body "$prBody")"
+
+          set +e
+          for aURL in ${(f)stalePRs}; do
+            gh pr comment "$aURL" --body "New PR: $newPRURL"
+          done
+          set -e
+
+          sleep 10
+          gh pr checks --watch --fail-fast "$newPRURL"
+
+          declare checksState="UNEXPECTED"
+          checksState="$(gh pr checks --json state --jq '.[].state' "$newPRURL" | sort -u)"
+
+          if [[ "${(U)checksState}" != "SUCCESS" ]]; then
+            echo "::error::Test(s) Failed."
+            gh pr checks "$newPRURL
+            exit 1
+          fi
+
+          gh pr merge --merge --delete-branch "$newPRURL"
