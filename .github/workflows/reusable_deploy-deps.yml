@@ -114,7 +114,16 @@ jobs:
           FORCE_PUSH: ${{ inputs.force-push }}
         with:
           script: |
-            const forcePushImages = {};
+            const forcePushImages = {
+              "ApacheHTTPServer": false,
+              "Expat": false,
+              "libxml2": false,
+              "Lua": false,
+              "nghttp2": false,
+              "OpenSSL": false,
+              "PCRE2": false,
+              "zlib": false
+            };
             for (const line of process.env.FORCE_PUSH.split(/\n/)) {
               if (/apache/i.test(line) || /httpd/i.test(line)) {
                 forcePushImages['ApacheHTTPServer'] = true;
@@ -158,16 +167,16 @@ jobs:
     name: Build Apache HTTP Server
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: |-
+      force-build: >-
         ${{
-          !fromJson(needs.prepare.outputs.force-push-images-json).ApacheHTTPServer &&
-          needs.build-expat.outputs.all-skipped == 'true' &&
-          needs.build-libxml2.outputs.all-skipped == 'true' &&
-          needs.build-lua.outputs.all-skipped == 'true' &&
-          needs.build-nghttp2.outputs.all-skipped == 'true' &&
-          needs.build-openssl.outputs.all-skipped == 'true' &&
-          needs.build-pcre2.outputs.all-skipped == 'true' &&
-          needs.build-zlib.outputs.all-skipped == 'true'
+          fromJson(needs.prepare.outputs.force-push-images-json).ApacheHTTPServer ||
+          needs.build-expat.outputs.all-skipped != 'true' ||
+          needs.build-libxml2.outputs.all-skipped != 'true' ||
+          needs.build-lua.outputs.all-skipped != 'true' ||
+          needs.build-nghttp2.outputs.all-skipped != 'true' ||
+          needs.build-openssl.outputs.all-skipped != 'true' ||
+          needs.build-pcre2.outputs.all-skipped != 'true' ||
+          needs.build-zlib.outputs.all-skipped != 'true'
         }}
       dockerfile: ./images/dependencies/ApacheHTTPServer/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
@@ -207,7 +216,7 @@ jobs:
     name: Build Expat (libexpat)
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Expat }}
+      force-build: ${{ fromJson(needs.prepare.outputs.force-push-images-json).Expat }}
       dockerfile: ./images/dependencies/Expat/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -231,10 +240,10 @@ jobs:
     name: Build libxml2
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: |-
+      force-build: >-
         ${{
-          !fromJson(needs.prepare.outputs.force-push-images-json).libxml2 &&
-          needs.build-zlib.outputs.all-skipped == 'true'
+          fromJson(needs.prepare.outputs.force-push-images-json).libxml2 ||
+          needs.build-zlib.outputs.all-skipped != 'true'
         }}
       dockerfile: ./images/dependencies/libxml2/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
@@ -260,7 +269,7 @@ jobs:
     name: Build Lua
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).Lua }}
+      force-build: ${{ fromJson(needs.prepare.outputs.force-push-images-json).Lua }}
       dockerfile: ./images/dependencies/Lua/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -282,11 +291,11 @@ jobs:
     name: Build nghttp2
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: |-
+      force-build: >-
         ${{
-          !fromJson(needs.prepare.outputs.force-push-images-json).nghttp2 &&
-          needs.build-openssl.outputs.all-skipped == 'true' &&
-          needs.build-zlib.outputs.all-skipped == 'true'
+          fromJson(needs.prepare.outputs.force-push-images-json).nghttp2 ||
+          needs.build-openssl.outputs.all-skipped != 'true' ||
+          needs.build-zlib.outputs.all-skipped != 'true'
         }}
       dockerfile: ./images/dependencies/nghttp2/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
@@ -313,10 +322,10 @@ jobs:
     name: Build OpenSSL
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: |-
+      force-build: >-
         ${{
-          !fromJson(needs.prepare.outputs.force-push-images-json).OpenSSL &&
-          needs.build-zlib.outputs.all-skipped == 'true'
+          fromJson(needs.prepare.outputs.force-push-images-json).OpenSSL ||
+          needs.build-zlib.outputs.all-skipped != 'true'
         }}
       dockerfile: ./images/dependencies/OpenSSL/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
@@ -342,7 +351,7 @@ jobs:
     name: Build PCRE2
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).PCRE2 }}
+      force-build: ${{ fromJson(needs.prepare.outputs.force-push-images-json).PCRE2 }}
       dockerfile: ./images/dependencies/PCRE2/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}
@@ -361,7 +370,7 @@ jobs:
     name: Build zlib
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: ${{ !fromJson(needs.prepare.outputs.force-push-images-json).zlib }}
+      force-build: ${{ fromJson(needs.prepare.outputs.force-push-images-json).zlib }}
       dockerfile: ./images/dependencies/zlib/${{ inputs.base-os-label }}.Dockerfile
       build-args: |
         BASE_OS_IMAGE=${{ inputs.base-os-image }}

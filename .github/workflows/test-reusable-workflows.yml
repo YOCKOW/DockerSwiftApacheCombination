@@ -10,7 +10,7 @@ jobs:
     name: Test Cache
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: false
+      force-build: true
       context: ./images/tests/test-cache
       dockerfile: ./images/tests/test-cache/Dockerfile
       image-basename: test-cache

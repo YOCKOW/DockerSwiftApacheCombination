@@ -332,10 +332,10 @@ jobs:
     name: Build Swift ${{ matrix.swift-version }} image for ${{ matrix.os_label }}
     uses: ./.github/workflows/reusable_build-multiplatform-image.yml
     with:
-      if-absent: >-
+      force-build: >-
         ${{
-          needs.generate-swift-image-build-conditions.outputs.force-push != 'true' &&
-          fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
+          needs.generate-swift-image-build-conditions.outputs.force-push == 'true' ||
+          !fromJson(needs.generate-swift-image-build-conditions.outputs.arranged-deps-results-json).skipped[matrix.os_label]
         }}
       dockerfile: ./images/products/Swift/${{ matrix.os_label }}.Dockerfile
       build-args: |
