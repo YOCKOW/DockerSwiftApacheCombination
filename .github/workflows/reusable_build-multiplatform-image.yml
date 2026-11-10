@@ -2,11 +2,13 @@ name: Build Multiplatform Image
 on:
   workflow_call:
     inputs:
-      if-absent:
-        description: "A boolean value that indicates whether or not the image should be built only when there's no existing image."
+      force-build:
+        description: >-
+          A boolean value that indicates whether or not
+          the image should be built forcibly.
         type: boolean
         required: false
-        default: true
+        default: false
       context:
         description: "Build Context"
         type: string
@@ -165,14 +167,16 @@ jobs:
       - name: Determine which image should be built
         id: should-build
         env:
-          IF_ABSENT: ${{ (inputs.if-absent && 'true') || 'false' }}
+          INPUT_FORCE_BUILD: ${{ inputs.force-build && 'true' || 'false' }}
           FULL_IMAGE_NAME: ${{ steps.image-name-info.outputs.full_image_name }}
           ALL_TAGS: ${{ steps.image-name-info.outputs.all_tags }}
         shell: bash
         run: |
+          set -eu
+
           declare should_build="false"
           declare -r tagsToBuildOutput=$(mktemp)
-          if [[ "$IF_ABSENT" != "true" ]]; then
+          if [[ "$INPUT_FORCE_BUILD" = "true" ]]; then
             echo "$ALL_TAGS" >>"$tagsToBuildOutput"
             should_build="true"
           else
