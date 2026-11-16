@@ -1,7 +1,7 @@
 name: Auto-update
 on:
   schedule:
-    - cron: "0 4 * * 0"
+    - cron: "0 0 * * 3"
   workflow_dispatch: {} # Enable to run manually
 permissions:
   contents: write
@@ -22,16 +22,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y git zsh libxml2-utils
-      - name: Checkout Repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
       - name: Create Token
         uses: actions/create-github-app-token@v3
         id: app-token
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
       - name: Generate Environment Variables
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
