@@ -64,7 +64,7 @@ jobs:
           declare aURL
           for aURL in ${(f)stalePRs}; do
             echo "::notice::Closing stale PR: ${aURL}"
-            gh pr close "$aURL"
+            gh pr close "$aURL" --delete-branch
           done
 
           git fetch "${GIT_REMOTE_NAME}" "${MAIN_BRANCH}"
@@ -90,6 +90,11 @@ jobs:
 
           declare newPRURL=""
           newPRURL="$(gh pr create --base "$BASE_BRANCH" --head "$AUTO_UPDATE_BRANCH" --title "$prTitle" --body "$prBody")"
+
+          gh pr edit "$newPRURL" \
+            --add-label 'auto-update' \
+            --add-reviewer 'YOCKOW' \
+            --add-assignee 'YOCKOW'
 
           set +e
           for aURL in ${(f)stalePRs}; do
