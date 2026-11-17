@@ -110,7 +110,7 @@ jobs:
 
           if [[ "${(U)checksState}" != "SUCCESS" ]]; then
             echo "::error::Test(s) Failed."
-            gh pr checks "$newPRURL
+            gh pr checks "$newPRURL"
             exit 1
           fi
 
