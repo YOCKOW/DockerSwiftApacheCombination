@@ -72,7 +72,7 @@ jobs:
             return forcePushImages.filter(i => i.length > 0).join("\n");
     outputs:
       DOCKER_REGISTRY: ghcr.io
-      DOCKER_USERNAME: ${{ github.actor }}
+      DOCKER_USERNAME: ${{ github.repository_owner }}
       DOCKER_DEPS_IMAGE_BASENAME: swift-de-cgi-deps
       DOCKER_PROD_IMAGE_BASENAME: swift-de-cgi
       DOCKER_TAG_NAME_SUFFIXES: ${{ steps.define-constants.outputs.tag_name_suffixes }}
