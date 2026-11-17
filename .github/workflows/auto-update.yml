@@ -52,6 +52,7 @@ jobs:
           git config --local user.name "${GIT_USER_NAME}"
           git config --local user.email "${GIT_USER_EMAIL}"
       - name: Update dependencies on `${{ env.BASE_BRANCH }}` branch
+        id: update-dependencies
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         shell: zsh {0}
@@ -139,5 +140,40 @@ jobs:
             fi
 
             gh pr merge --merge --delete-branch "$newPRURL"
+
+            echo "auto-update-pr-url=${newPRURL}" >>"$GITHUB_OUTPUT"
+            echo 'updated=true' >>"$GITHUB_OUTPUT"
           }
           echo '::endgroup::'
+
+      - name: Create PR against `${{ env.MAIN_BRANCH }}` branch.
+        if: ${{ steps.update-dependencies.outputs.updated == 'true' }}
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          AUTO_UPDATE_PR_URL: ${{ steps.update-dependencies.outputs.auto-update-pr-url }}
+        shell: zsh {0}
+        run: |
+          set -eu
+
+          declare currentPRs=""
+          currentPRs="$(gh pr list --state open --search "base:${MAIN_BRANCH} head:${BASE_BRANCH}" --json url --jq '.[].url')"
+
+          declare -r numberOfCurrentPRs=$(( 0 + $( echo "$currentPRs" | wc -l ) ))
+          declare activePR="$currentPRs"
+
+          if [[ $numberOfCurrentPRs -gt 1 ]]; then
+            echo "::error::Unexpected number of current PRs?!"
+            exit 1
+          elif [[ $numberOfCurrentPRs -eq 0 ]]; then
+            declare -r prTitle="Update \`${MAIN_BRANCH}\` branch. (${JOB_DATE})"
+            declare -r prBody="This PR was created automatically."$'\n'"Update \`${MAIN_BRANCH}\` branch on a regular basis."$'\n\n'"- Job UUID: ${JOB_UUID}"$'\n'"- Date: ${JOB_DATE}"
+            activePR="$(gh pr create --base "$MAIN_BRANCH" --head "$BASE_BRANCH" --title "$prTitle" --body "$prBody")"
+          fi
+
+          gh pr edit "$activePR" \
+            --add-assignee "${REPOSITORY_OWNER}" \
+            --add-reviewer "${REPOSITORY_OWNER}"
+
+          declare -r commentBody='@'"${REPOSITORY_OWNER}"$'\n\n'"\`${BASE_BRANCH}\` branch has been updated via ${AUTO_UPDATE_PR_URL} by bot."
+          gh pr comment "$activePR" --body "$commentBody"
