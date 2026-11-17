@@ -93,7 +93,6 @@ jobs:
 
           gh pr edit "$newPRURL" \
             --add-label 'auto-update' \
-            --add-reviewer 'YOCKOW' \
             --add-assignee 'YOCKOW'
 
           set +e
@@ -106,11 +105,11 @@ jobs:
           gh pr checks --watch --fail-fast "$newPRURL"
 
           declare checksState="UNEXPECTED"
-          checksState="$(gh pr checks --json state --jq '.[].state' "$newPRURL" | sort -u)"
+          checksState="$(gh pr checks --json state --jq '.[].state' "$newPRURL" | sort -u | xargs)"
 
-          if [[ "${(U)checksState}" != "SUCCESS" ]]; then
-            echo "::error::Test(s) Failed."
-            gh pr checks "$newPRURL
+          if ! [[ "${(U)checksState}" =~ ^(SKIPPED[[:space:]]+)?SUCCESS$ ]]; then
+            echo "::error::Test(s) Failed. (State: ${checksState})"
+            gh pr checks "$newPRURL"
             exit 1
           fi
 
