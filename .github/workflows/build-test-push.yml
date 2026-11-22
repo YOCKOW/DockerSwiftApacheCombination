@@ -17,7 +17,7 @@ permissions:
   id-token: write
 env:
   LATEST_BRANCH: main
-  DEFAULT_SWIFT_VERSION: "6.4.2"
+  DEFAULT_SWIFT_VERSION: "6.4.3"
   DEFAULT_OS_IMAGE_NAME: "ubuntu:resolute"
   DEFAULT_OS_LABEL: "resolute"
 jobs:
