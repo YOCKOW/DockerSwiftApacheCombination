@@ -10,6 +10,7 @@ env:
   MAIN_BRANCH: main
   BASE_BRANCH: development
   AUTO_UPDATE_BRANCH_PREFIX: auto-update-
+  AUTO_UPDATE_LABEL: auto-update
   GIT_REMOTE_NAME: origin
 jobs:
   auto-update:
@@ -66,7 +67,7 @@ jobs:
 
           echo '::group::Closing stale PRs...'
           {
-            stalePRs="$(gh pr list --state open --search "base:${BASE_BRANCH} head:${AUTO_UPDATE_BRANCH_PREFIX}" --json url --jq '.[].url')"
+            stalePRs="$(gh pr list --search "is:pr state:open label:${AUTO_UPDATE_LABEL} base:${BASE_BRANCH}" --json url --jq '.[].url')"
 
             for aURL in ${(f)stalePRs}; do
               echo "::notice::Closing stale PR: ${aURL}"
@@ -111,7 +112,7 @@ jobs:
 
             newPRURL="$(gh pr create --base "$BASE_BRANCH" --head "$AUTO_UPDATE_BRANCH" --title "$prTitle" --body "$prBody")"
 
-            gh pr edit "$newPRURL" --add-label 'auto-update'
+            gh pr edit "$newPRURL" --add-label "${AUTO_UPDATE_LABEL}"
 
             set +e
             for aURL in ${(f)stalePRs}; do
@@ -156,24 +157,38 @@ jobs:
         run: |
           set -eu
 
-          declare currentPRs=""
-          currentPRs="$(gh pr list --state open --search "base:${MAIN_BRANCH} head:${BASE_BRANCH}" --json url --jq '.[].url')"
+          declare -a currentPRs=()
+          currentPRs=($(gh pr list --search "is:pr state:open base:${MAIN_BRANCH} head:${BASE_BRANCH}" --json url --jq '.[].url'))
 
-          declare -r numberOfCurrentPRs=$(( 0 + $( echo "$currentPRs" | wc -l ) ))
-          declare activePR="$currentPRs"
+          declare -r numberOfCurrentPRs=$(( 0 + $#currentPRs ))
+          declare activePR=""
 
           if [[ $numberOfCurrentPRs -gt 1 ]]; then
-            echo "::error::Unexpected number of current PRs?!"
+            echo "::error::Unexpected number of current PRs?! (Count: ${numberOfCurrentPRs})"
             exit 1
           elif [[ $numberOfCurrentPRs -eq 0 ]]; then
             declare -r prTitle="Update \`${MAIN_BRANCH}\` branch. (${JOB_DATE})"
             declare -r prBody="This PR was created automatically."$'\n'"Update \`${MAIN_BRANCH}\` branch on a regular basis."$'\n\n'"- Job UUID: ${JOB_UUID}"$'\n'"- Date: ${JOB_DATE}"
             activePR="$(gh pr create --base "$MAIN_BRANCH" --head "$BASE_BRANCH" --title "$prTitle" --body "$prBody")"
+          else
+            activePR="${currentPRs[1]}"
+          fi
+
+          if [[ -z "$activePR" ]]; then
+            echo "::error::Missing active PR?!"
+            exit 1
+          fi
+
+          declare stateOfActivePR=""
+          stateOfActivePR="$(gh pr view "$activePR" --json state --jq '.state')"
+          if [[ "${(U)stateOfActivePR}" != 'OPEN' ]]; then
+            echo "::error::Unexpected state of active PR?! (State: ${stateOfActivePR})"
+            exit 1
           fi
 
           gh pr edit "$activePR" \
             --add-assignee "${REPOSITORY_OWNER}" \
             --add-reviewer "${REPOSITORY_OWNER}"
 
-          declare -r commentBody='@'"${REPOSITORY_OWNER}"$'\n\n'"\`${BASE_BRANCH}\` branch has been updated via ${AUTO_UPDATE_PR_URL} by bot."
+          declare -r commentBody='@'"${REPOSITORY_OWNER}"$'\n\n'"\`${BASE_BRANCH}\` branch has been updated via ${AUTO_UPDATE_PR_URL} by me."
           gh pr comment "$activePR" --body "$commentBody"
